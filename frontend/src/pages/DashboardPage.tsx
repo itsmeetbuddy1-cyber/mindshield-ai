@@ -1,246 +1,195 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { useNavigate, Link } from 'react-router-dom';
-import { Play, Activity, MessageSquare, Wind, BarChart2, HeartPulse, RefreshCw } from 'lucide-react';
-import type { DashboardData } from '../types';
-import { apiService } from '../services/api';
-import toast from 'react-hot-toast';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
+import { Activity, Brain, Heart, Wind, Shield, Calendar, Mic, Camera, ChevronRight, Info } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { Link } from 'react-router-dom';
 
 const DashboardPage: React.FC = () => {
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
+  const { t } = useTranslation();
+  const { user } = useAuth();
+  const [showXai, setShowXai] = useState(false);
+  const [liveStress] = useState(42);
 
-  // Dynamic real-time signal monitor state
-  const [realTimeSignals, setRealTimeSignals] = useState({
-    stressIndex: 52,
-    sentiment: 48,
-    interactionIntensity: 50,
-    responsePattern: 75,
-    selfReported: 45
-  });
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const res = await apiService.getDashboard();
-        const result = res.data;
-        setData(result);
-        
-        const currentStress = typeof result.current_stress === 'number' 
-          ? result.current_stress 
-          : (typeof (result.current_stress as any)?.stress_score === 'number' ? (result.current_stress as any).stress_score : 52);
-        
-        setRealTimeSignals({
-          stressIndex: currentStress,
-          sentiment: Math.max(0, 100 - currentStress),
-          interactionIntensity: 50,
-          responsePattern: 75,
-          selfReported: currentStress > 50 ? currentStress - 10 : currentStress + 10
-        });
-      } catch (error) {
-        console.error("Failed to load dashboard data", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
-
-  // Periodic signal updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setRealTimeSignals(prev => ({
-        stressIndex: Math.max(10, Math.min(95, prev.stressIndex + (Math.random() * 6 - 3))),
-        sentiment: Math.max(10, Math.min(90, prev.sentiment + (Math.random() * 6 - 3))),
-        interactionIntensity: Math.max(20, Math.min(90, prev.interactionIntensity + (Math.random() * 10 - 5))),
-        responsePattern: Math.max(30, Math.min(90, prev.responsePattern + (Math.random() * 4 - 2))),
-        selfReported: prev.selfReported
-      }));
-    }, 3000);
-    
-    return () => clearInterval(interval);
-  }, []);
-
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
-  };
-
-  const getStressColor = (score: number) => {
-    if (score <= 25) return '#22c55e'; // green (calm)
-    if (score <= 50) return '#eab308'; // yellow (mild)
-    if (score <= 75) return '#f97316'; // orange (elevated)
-    return '#ef4444'; // red (high)
-  };
-  
-  const getStressCategory = (score: number) => {
-    if (score <= 25) return 'Calm';
-    if (score <= 50) return 'Mild';
-    if (score <= 75) return 'Elevated';
-    return 'High';
-  };
-
-  const rawStress = (data as any)?.current_stress;
-  const stressScore: number = typeof rawStress === 'number' 
-    ? rawStress 
-    : (typeof rawStress?.stress_score === 'number' ? rawStress.stress_score : 58);
-
-  const stressColor = getStressColor(stressScore);
-  const stressCategory = getStressCategory(stressScore);
-  const circleCircumference = 2 * Math.PI * 80;
-  const strokeDashoffset = circleCircumference - (stressScore / 100) * circleCircumference;
-
-  if (loading) {
-    return (
-      <div className="flex h-96 items-center justify-center text-white">
-        <RefreshCw className="h-8 w-8 animate-spin text-[#00a3ff]" />
-      </div>
-    );
-  }
+  const stats = [
+    { title: t('dashboard.stats.sessions', 'Sessions'), value: '12', icon: Shield, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+    { title: t('dashboard.stats.avg_stress', 'Avg Stress'), value: '45%', icon: Activity, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+    { title: t('dashboard.stats.checkins', 'Check-ins'), value: '8', icon: Calendar, color: 'text-purple-500', bg: 'bg-purple-500/10' },
+  ];
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="max-w-7xl mx-auto space-y-6 pb-16"
-    >
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Header */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">
-            {getGreeting()}. <span className="text-[#00a3ff]">Good to see you.</span>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            {t('dashboard.greeting', 'Welcome back')}, {user?.display_name || user?.username || t('dashboard.guest', 'Guest')}
           </h1>
-          <p className="text-white/60 mt-2">
-            Your stress indicators appear <span className="font-semibold text-white capitalize">{stressCategory}</span>.
+          <p className="text-gray-500 dark:text-slate-400 mt-1">
+            {t('dashboard.subtitle', "Here's a quick overview of your well-being today.")}
           </p>
         </div>
-        <div className="flex gap-3">
-          <button 
-            onClick={() => navigate('/demo')}
-            className="flex items-center gap-2 bg-gradient-to-r from-shield-500 to-cyan-500 hover:from-shield-400 hover:to-cyan-400 text-white px-6 py-3 rounded-2xl font-semibold transition-all shadow-lg shadow-shield-500/25 active:scale-95"
-          >
-            <Play className="w-4 h-4 fill-current" />
-            Launch Live Demo
-          </button>
-        </div>
+        <Link 
+          to="/checkin" 
+          className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors shadow-sm flex items-center gap-2"
+        >
+          <Heart className="w-4 h-4" />
+          {t('dashboard.quick_checkin', 'Quick Check-in')}
+        </Link>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Main Stress Gauge */}
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 flex flex-col items-center justify-center shadow-2xl relative overflow-hidden group">
-          <div className="absolute inset-0 bg-gradient-to-br from-[#00a3ff]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+      {/* Main Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Left Column - Live Telemetry & Quick Analyzers */}
+        <div className="lg:col-span-2 space-y-6">
           
-          <h2 className="text-lg font-medium text-white/80 mb-6 w-full text-left">Stress Index</h2>
-          
-          <div className="relative flex items-center justify-center w-56 h-56">
-            {/* Background track */}
-            <svg className="w-full h-full transform -rotate-90">
-              <circle
-                cx="112"
-                cy="112"
-                r="80"
-                fill="none"
-                stroke="rgba(255,255,255,0.1)"
-                strokeWidth="16"
-                strokeLinecap="round"
-              />
-              {/* Animated fill */}
-              <motion.circle
-                cx="112"
-                cy="112"
-                r="80"
-                fill="none"
-                stroke={stressColor}
-                strokeWidth="16"
-                strokeLinecap="round"
-                initial={{ strokeDasharray: circleCircumference, strokeDashoffset: circleCircumference }}
-                animate={{ strokeDashoffset }}
-                transition={{ duration: 1.5, ease: "easeOut" }}
-              />
-            </svg>
-            
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
-              <span className="text-5xl font-extrabold">{Math.round(stressScore)}</span>
-              <span className="text-sm text-white/50">/ 100</span>
+          {/* Live Telemetry Card */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-gray-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <Activity className="text-blue-500" />
+                  {t('dashboard.telemetry.title', 'Live Telemetry')}
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">Real-time fusion of biometrics & context</p>
+              </div>
+              <button 
+                onClick={() => setShowXai(!showXai)}
+                className="flex items-center gap-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                <Info className="w-4 h-4" />
+                {t('dashboard.telemetry.why', 'Why this score?')}
+              </button>
             </div>
-          </div>
-          
-          <div className="mt-6 flex flex-col items-center">
-            <span className="px-4 py-1.5 rounded-full text-sm font-semibold capitalize bg-white/10 border" style={{ color: stressColor, borderColor: `${stressColor}40` }}>
-              {stressCategory}
-            </span>
-          </div>
-        </div>
 
-        {/* Real-time Signals */}
-        <div className="md:col-span-2 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl flex flex-col">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg font-medium text-white flex items-center gap-2">
-              <Activity className="w-5 h-5 text-[#00a3ff]" />
-              Real-Time Signal Monitor
-            </h2>
-            <div className="flex items-center gap-2 bg-red-500/10 px-3 py-1 rounded-full border border-red-500/20">
-              <motion.div 
-                animate={{ opacity: [1, 0.3, 1] }}
-                transition={{ repeat: Infinity, duration: 1.2 }}
-                className="w-2.5 h-2.5 rounded-full bg-red-500"
-              />
-              <span className="text-xs font-bold tracking-wider text-red-400">LIVE</span>
-            </div>
-          </div>
-          
-          <div className="space-y-5 flex-1 justify-center flex flex-col">
-            {[
-              { label: 'Stress Index', value: realTimeSignals.stressIndex, color: '#ef4444' },
-              { label: 'Sentiment Indicator', value: realTimeSignals.sentiment, color: '#22c55e' },
-              { label: 'Interaction Intensity', value: realTimeSignals.interactionIntensity, color: '#f97316' },
-              { label: 'Response Pattern', value: realTimeSignals.responsePattern, color: '#eab308' },
-              { label: 'Self-Reported Stress', value: realTimeSignals.selfReported, color: '#00a3ff' }
-            ].map((signal, idx) => (
-              <div key={idx}>
-                <div className="flex justify-between text-sm mb-1.5">
-                  <span className="text-white/70">{signal.label}</span>
-                  <span className="text-white font-medium">{Math.round(signal.value)} / 100</span>
-                </div>
-                <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
-                  <motion.div 
-                    className="h-full rounded-full"
-                    style={{ backgroundColor: signal.color }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${signal.value}%` }}
-                    transition={{ type: 'spring', stiffness: 50, damping: 15 }}
+            <div className="flex flex-col md:flex-row items-center gap-8">
+              <div className="relative w-40 h-40 flex items-center justify-center">
+                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="8" className="text-gray-100 dark:text-slate-800" />
+                  <circle 
+                    cx="50" cy="50" r="45" 
+                    fill="none" stroke="currentColor" strokeWidth="8" 
+                    strokeDasharray={`${liveStress * 2.83} 283`}
+                    className="text-blue-500 transition-all duration-1000 ease-out" 
                   />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                  <span className="text-4xl font-bold text-gray-900 dark:text-white">{liveStress}</span>
+                  <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Score</span>
                 </div>
               </div>
-            ))}
+              
+              <div className="flex-1 w-full">
+                {/* Mock LiveStressGraph */}
+                <div className="h-32 bg-gray-50 dark:bg-slate-950 rounded-xl border border-gray-100 dark:border-slate-800 flex items-end px-2 pb-2 gap-1 relative">
+                  <div className="absolute top-2 left-3 text-xs text-gray-400 font-medium">Timeline (last 60s)</div>
+                  {[40, 42, 45, 50, 48, 45, 42, 40, 41, 42, 43, 42].map((val, i) => (
+                    <motion.div 
+                      key={i}
+                      initial={{ height: 0 }}
+                      animate={{ height: `${val}%` }}
+                      transition={{ delay: i * 0.1 }}
+                      className="flex-1 bg-blue-500/80 rounded-t-sm"
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Explainable AI Drawer */}
+            <AnimatePresence>
+              {showXai && (
+                <motion.div 
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden mt-6 pt-6 border-t border-gray-200 dark:border-slate-800"
+                >
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Explainable AI (XAI) Breakdown</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="p-3 bg-gray-50 dark:bg-slate-950 rounded-xl">
+                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300 mb-1">
+                        <Mic className="w-4 h-4 text-purple-500" /> Voice Prosody
+                      </div>
+                      <div className="font-medium text-gray-900 dark:text-white">Normal pitch & speed (+0)</div>
+                    </div>
+                    <div className="p-3 bg-gray-50 dark:bg-slate-950 rounded-xl">
+                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300 mb-1">
+                        <Camera className="w-4 h-4 text-emerald-500" /> Facial Micro-expr
+                      </div>
+                      <div className="font-medium text-gray-900 dark:text-white">Neutral baseline (+10)</div>
+                    </div>
+                    <div className="p-3 bg-gray-50 dark:bg-slate-950 rounded-xl">
+                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300 mb-1">
+                        <Brain className="w-4 h-4 text-blue-500" /> Context/Text
+                      </div>
+                      <div className="font-medium text-gray-900 dark:text-white">Recent keywords: 'busy' (+32)</div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Multimodal Quick Analyzers */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <button className="flex items-center gap-4 p-5 bg-white dark:bg-slate-900 rounded-3xl border border-gray-200 dark:border-slate-800 hover:border-purple-300 dark:hover:border-purple-500/50 hover:shadow-md transition-all text-left group">
+              <div className="w-12 h-12 bg-purple-100 dark:bg-purple-500/20 rounded-2xl flex items-center justify-center text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform">
+                <Mic className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white">Voice Analyzer</h3>
+                <p className="text-sm text-gray-500 dark:text-slate-400">Speak to check stress levels</p>
+              </div>
+            </button>
+            <button className="flex items-center gap-4 p-5 bg-white dark:bg-slate-900 rounded-3xl border border-gray-200 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-500/50 hover:shadow-md transition-all text-left group">
+              <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-500/20 rounded-2xl flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform">
+                <Camera className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white">Camera Analyzer</h3>
+                <p className="text-sm text-gray-500 dark:text-slate-400">Facial micro-expression check</p>
+              </div>
+            </button>
           </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-        {[
-          { title: 'Check In', icon: HeartPulse, color: 'text-rose-400', bg: 'bg-rose-400/10', link: '/checkin' },
-          { title: 'Talk to Shield AI', icon: MessageSquare, color: 'text-[#00a3ff]', bg: 'bg-[#00a3ff]/10', link: '/assistant' },
-          { title: 'Breathing Exercise', icon: Wind, color: 'text-teal-400', bg: 'bg-teal-400/10', link: '/breathing/box' },
-          { title: 'View Insights', icon: BarChart2, color: 'text-purple-400', bg: 'bg-purple-400/10', link: '/insights' }
-        ].map((action, idx) => (
-          <Link 
-            key={idx}
-            to={action.link}
-            className="bg-white/5 hover:bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl p-5 flex flex-col items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 cursor-pointer group"
-          >
-            <div className={`p-3 rounded-xl ${action.bg} group-hover:scale-110 transition-transform`}>
-              <action.icon className={`w-6 h-6 ${action.color}`} />
+        {/* Right Column */}
+        <div className="space-y-6">
+          {/* Quick Stats */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-gray-200 dark:border-slate-800 shadow-sm">
+            <h3 className="font-bold text-gray-900 dark:text-white mb-4">Summary</h3>
+            <div className="space-y-4">
+              {stats.map((stat, i) => (
+                <div key={i} className="flex items-center gap-4">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${stat.bg} ${stat.color}`}>
+                    <stat.icon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-500 dark:text-slate-400">{stat.title}</div>
+                    <div className="font-bold text-gray-900 dark:text-white">{stat.value}</div>
+                  </div>
+                </div>
+              ))}
             </div>
-            <span className="text-sm font-medium text-white/90">{action.title}</span>
-          </Link>
-        ))}
-      </div>
+          </div>
 
-    </motion.div>
+          {/* Recommended Action */}
+          <Link to="/breathing/4-7-8" className="block bg-gradient-to-br from-blue-500 to-indigo-600 rounded-3xl p-6 text-white hover:shadow-lg hover:-translate-y-1 transition-all">
+            <div className="flex justify-between items-start mb-8">
+              <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
+                <Wind className="w-6 h-6 text-white" />
+              </div>
+              <ChevronRight className="w-5 h-5 text-white/70" />
+            </div>
+            <h3 className="text-xl font-bold mb-1">4-7-8 Breathing</h3>
+            <p className="text-blue-100 text-sm">Recommended based on your recent check-in. Helps reduce anxiety.</p>
+          </Link>
+        </div>
+
+      </div>
+    </div>
   );
 };
 

@@ -1,0 +1,173 @@
+{
+  "app": {
+    "name": "MindShield AI",
+    "tagline": "Your AI Mental Wellness Companion",
+    "team": "Team INSIGHT-X"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "assistant": "Shield AI",
+    "insights": "Insights",
+    "analytics": "Analytics",
+    "toolkit": "Toolkit",
+    "journal": "Journal",
+    "profile": "Profile",
+    "checkin": "Check In",
+    "demo": "Live Demo",
+    "host": "Host Control Room",
+    "login": "Login",
+    "signup": "Sign Up",
+    "logout": "Logout"
+  },
+  "landing": {
+    "hero_title": "Your AI-Powered Mental Wellness Shield",
+    "hero_subtitle": "Real-time stress detection, personalized coping strategies, and 24/7 AI support — all in one platform.",
+    "get_started": "Get Started",
+    "live_demo": "Live Demo",
+    "features_title": "How MindShield Protects You",
+    "contact_title": "Contact & Team"
+  },
+  "dashboard": {
+    "welcome": "Welcome back",
+    "stress_level": "Current Stress Level",
+    "check_in": "Quick Check-In",
+    "talk_ai": "Talk to AI",
+    "breathing": "Breathing Exercise",
+    "insights": "View Insights",
+    "signals": "Real-Time Signals",
+    "recent_checkins": "Recent Check-Ins",
+    "streak": "Day Streak",
+    "sessions_today": "Sessions Today"
+  },
+  "assistant": {
+    "title": "Shield AI Assistant",
+    "placeholder": "Type your message...",
+    "send": "Send",
+    "quick_actions": "Quick Actions",
+    "calm_down": "Help Me Calm Down",
+    "overwhelmed": "I'm Overwhelmed",
+    "breathing": "Guide My Breathing",
+    "talk": "Talk With Me",
+    "stress": "Show My Stress",
+    "crisis_banner": "If you're in crisis, please contact:",
+    "typing": "Shield AI is thinking..."
+  },
+  "checkin": {
+    "title": "How are you feeling?",
+    "mood_title": "Select your mood",
+    "stressor_title": "What's contributing?",
+    "moods": {
+      "calm": "Calm",
+      "okay": "Okay",
+      "neutral": "Neutral",
+      "stressed": "Stressed",
+      "overwhelmed": "Overwhelmed"
+    },
+    "stressors": {
+      "academic": "Academic Pressure",
+      "workload": "Workload",
+      "relationships": "Relationships",
+      "family": "Family",
+      "sleep": "Sleep Issues",
+      "financial": "Financial Concerns",
+      "other": "Other"
+    },
+    "submit": "Complete Check-In",
+    "next": "Next"
+  },
+  "toolkit": {
+    "title": "Coping Toolkit",
+    "subtitle": "Evidence-based exercises to manage stress",
+    "box_breathing": "Box Breathing",
+    "breathing_46": "4-6 Breathing",
+    "grounding": "5-4-3-2-1 Grounding",
+    "focus_reset": "Focus Reset",
+    "journaling": "Journaling",
+    "mindful_pause": "Mindful Pause",
+    "pmr": "Progressive Muscle Relaxation",
+    "start": "Start Exercise",
+    "duration": "Duration"
+  },
+  "journal": {
+    "title": "Private Journal",
+    "new_entry": "New Entry",
+    "search": "Search entries...",
+    "entry_title": "Title",
+    "entry_content": "Write your thoughts...",
+    "save": "Save",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "no_entries": "No journal entries yet. Start writing!"
+  },
+  "analytics": {
+    "title": "Analytics",
+    "stress_trajectory": "Stress Trajectory",
+    "trigger_breakdown": "Trigger Breakdown",
+    "recovery_trend": "Recovery Trend",
+    "period_7d": "7 Days",
+    "period_30d": "30 Days"
+  },
+  "profile": {
+    "title": "Profile & Settings",
+    "ai_mode": "AI Mode",
+    "demo_mode": "Demo Mode",
+    "monitoring": "Background Monitoring",
+    "privacy_center": "Privacy Center",
+    "export_data": "Export My Data",
+    "delete_data": "Delete All Data",
+    "about": "About MindShield AI",
+    "disclaimer": "MindShield AI is a wellness tool, not a medical device. It does not provide diagnoses or treatment."
+  },
+  "auth": {
+    "login_title": "Welcome Back",
+    "login_subtitle": "Sign in to your MindShield account",
+    "signup_title": "Create Account",
+    "signup_subtitle": "Start your mental wellness journey",
+    "email": "Email",
+    "password": "Password",
+    "confirm_password": "Confirm Password",
+    "name": "Full Name",
+    "login_btn": "Sign In",
+    "signup_btn": "Create Account",
+    "no_account": "Don't have an account?",
+    "has_account": "Already have an account?",
+    "or_continue": "Or continue as guest",
+    "guest_btn": "Continue Without Account"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "retry": "Retry",
+    "back": "Back",
+    "close": "Close",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "search": "Search"
+  },
+  "sensors": {
+    "title": "Sensor Permissions",
+    "camera": "Camera",
+    "microphone": "Microphone",
+    "interaction": "Interaction Tracking",
+    "camera_desc": "Used for facial expression analysis (processed locally)",
+    "mic_desc": "Used for voice pattern analysis (processed locally)",
+    "interaction_desc": "Tracks typing patterns and response timing",
+    "granted": "Granted",
+    "denied": "Denied",
+    "not_asked": "Not Asked",
+    "why_needed": "Why we need this",
+    "revoke": "Revoke"
+  },
+  "multimodal": {
+    "why_result": "WHY THIS RESULT?",
+    "signals_used": "Signals Used",
+    "self_report": "Self-Reported",
+    "text_analysis": "Text Analysis",
+    "voice_analysis": "Voice Analysis",
+    "camera_analysis": "Camera Analysis",
+    "interaction": "Interaction Patterns",
+    "not_available": "Not Available",
+    "disclaimer": "This is a stress awareness tool, not a medical diagnosis."
+  }
+}

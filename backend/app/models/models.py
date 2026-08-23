@@ -6,22 +6,27 @@ class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True)
+    email = Column(String, unique=True, index=True, nullable=True)
+    password_hash = Column(String, nullable=True)
+    display_name = Column(String, nullable=True)
+    preferred_language = Column(String, default="en")
+    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     preferences = Column(JSON, default={})
 
 class CheckIn(Base):
     __tablename__ = "check_ins"
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)
     mood = Column(String)
     stressor = Column(String)
     stress_level = Column(Integer)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 class StressReading(Base):
     __tablename__ = "stress_readings"
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)
     stress_score = Column(Float)
     category = Column(String)
     confidence = Column(Float)
@@ -32,7 +37,7 @@ class StressReading(Base):
 class Conversation(Base):
     __tablename__ = "conversations"
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)
     role = Column(String)
     content = Column(Text)
     safety_level = Column(String)

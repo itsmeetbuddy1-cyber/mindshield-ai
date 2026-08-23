@@ -35,6 +35,33 @@ class StressAnalysisResponse(BaseSchema):
 class MessageRequest(BaseModel):
     message: str
     user_id: Optional[int] = 1
+    language: Optional[str] = "en"
+    session_id: Optional[str] = None
+
+class SignupRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class UserProfileResponse(BaseSchema):
+    id: int
+    username: Optional[str] = None
+    email: Optional[str] = None
+    display_name: Optional[str] = None
+    preferred_language: str = "en"
+    created_at: Optional[datetime] = None
+
+class AuthResponse(BaseModel):
+    token: str
+    user: UserProfileResponse
+
+class UpdateProfileRequest(BaseModel):
+    display_name: Optional[str] = None
+    preferred_language: Optional[str] = None
 
 class MessageResponse(BaseSchema):
     response: str

@@ -1,222 +1,125 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { User, Lock, Shield, Settings, Download, Trash2, Info, ExternalLink } from 'lucide-react';
-import { apiService } from '../services/api';
-import type { UserSettings } from '../types';
-import toast from 'react-hot-toast';
+import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { User, Settings, Shield, Bell, Camera, Mic, LogOut, Check } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
-export const ProfilePage: React.FC = () => {
-  const [settings, setSettings] = useState<UserSettings>({
-    ai_mode: 'mock',
-    demo_mode: false,
-    monitoring_enabled: true,
-    consent_given: true,
-  });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchSettings();
-  }, []);
-
-  const fetchSettings = async () => {
-    try {
-      const res = await apiService.getSettings();
-      if (res.data) {
-        setSettings(prev => ({ ...prev, ...res.data }));
-      }
-    } catch {
-      // Default to mock mode
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleToggle = async (key: keyof UserSettings) => {
-    const updated = {
-      ...settings,
-      [key]: typeof settings[key] === 'boolean' 
-        ? !settings[key] 
-        : (settings[key] === 'mock' ? 'real' : 'mock'),
-    };
-    setSettings(updated);
-
-    try {
-      await apiService.updateSettings(updated);
-      toast.success('Settings updated');
-    } catch {
-      setSettings(settings);
-      toast.error('Failed to update settings');
-    }
-  };
-
-  const handleDeleteData = async () => {
-    if (window.confirm('Are you absolutely sure? This will delete all your journal entries, sessions, and check-ins. This action cannot be undone.')) {
-      try {
-        await apiService.deleteUserData();
-        toast.success('All data deleted successfully');
-      } catch {
-        toast.error('Failed to delete data');
-      }
-    }
-  };
-
-  const handleExportData = () => {
-    toast.success('Data export started. Check your downloads.');
-  };
-
-  if (loading) {
-    return <div className="min-h-screen bg-[#0a0e1a] text-white flex items-center justify-center">Loading...</div>;
-  }
+const ProfilePage: React.FC = () => {
+  const { t } = useTranslation();
+  const { user, logout } = useAuth();
+  const [cameraEnabled, setCameraEnabled] = useState(true);
+  const [micEnabled, setMicEnabled] = useState(true);
 
   return (
-    <div className="min-h-screen bg-[#0a0e1a] text-white p-6 pb-24">
-      <div className="max-w-3xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-6">
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t('profile.title', 'Profile & Settings')}</h1>
+        <p className="text-gray-500 dark:text-slate-400">{t('profile.subtitle', 'Manage your account and privacy preferences.')}</p>
+      </header>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
-        <header className="flex items-center space-x-3 mb-8">
-          <div className="w-12 h-12 rounded-full bg-shield-500/20 flex items-center justify-center">
-            <User className="w-6 h-6 text-shield-500" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">Profile & Settings</h1>
-            <p className="text-white/60 mt-1">Manage your account, privacy, and app preferences.</p>
-          </div>
-        </header>
-
-        <motion.section 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6"
-        >
-          <div className="flex items-center space-x-3 mb-6">
-            <Settings className="w-5 h-5 text-shield-500" />
-            <h2 className="text-xl font-semibold">Preferences</h2>
-          </div>
-          
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-medium text-lg">AI Integration Mode</h3>
-                <p className="text-white/50 text-sm mt-1 max-w-md">
-                  Toggle between real AI models and local mock data. 
-                  {settings.ai_mode === 'mock' && <span className="text-orange-400 block mt-1">Currently using mock data for demo purposes.</span>}
-                </p>
-              </div>
-              <button 
-                onClick={() => handleToggle('ai_mode')}
-                className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors ${settings.ai_mode === 'real' ? 'bg-shield-500' : 'bg-white/20'}`}
-              >
-                <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${settings.ai_mode === 'real' ? 'translate-x-8' : 'translate-x-1'}`} />
-              </button>
+        {/* Left Column: Account Info */}
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-gray-200 dark:border-slate-800 shadow-sm text-center">
+            <div className="w-24 h-24 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white dark:border-slate-800 shadow-lg">
+               <User className="w-12 h-12 text-blue-600 dark:text-blue-300" />
             </div>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">{user?.display_name || user?.username || 'Guest User'}</h2>
+            <p className="text-gray-500 dark:text-slate-400 text-sm">{user?.email || 'Not logged in'}</p>
             
-            <div className="h-px bg-white/10" />
-            
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-medium text-lg">Demo Mode</h3>
-                <p className="text-white/50 text-sm mt-1 max-w-md">
-                  Simulate high stress events for demonstration purposes.
-                </p>
-              </div>
-              <button 
-                onClick={() => handleToggle('demo_mode')}
-                className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors ${settings.demo_mode ? 'bg-shield-500' : 'bg-white/20'}`}
-              >
-                <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${settings.demo_mode ? 'translate-x-8' : 'translate-x-1'}`} />
-              </button>
-            </div>
+            <button 
+              onClick={logout}
+              className="mt-6 w-full py-2.5 px-4 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
+            >
+              <LogOut className="w-4 h-4" /> {t('profile.logout', 'Sign Out')}
+            </button>
           </div>
-        </motion.section>
 
-        <motion.section 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-gradient-to-br from-shield-500/10 to-transparent border border-shield-500/20 rounded-2xl p-6"
-        >
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="p-2 bg-shield-500/20 rounded-lg">
-              <Lock className="w-5 h-5 text-shield-500" />
-            </div>
-            <h2 className="text-xl font-semibold text-shield-500">Privacy Center</h2>
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-gray-200 dark:border-slate-800 shadow-sm">
+             <h3 className="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                <Shield className="w-5 h-5 text-blue-500" /> Data Privacy
+             </h3>
+             <ul className="space-y-3 text-sm text-gray-600 dark:text-slate-400">
+               <li className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5"/> Fully encrypted at rest</li>
+               <li className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5"/> Biometrics processed on-device</li>
+               <li className="flex items-start gap-2"><Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5"/> No audio/video recording stored</li>
+             </ul>
           </div>
+        </div>
+
+        {/* Right Column: Settings & Sensors */}
+        <div className="md:col-span-2 space-y-6">
           
-          <p className="text-white/70 mb-6">
-            Your privacy is our priority. MindShield AI processes sensitive data locally whenever possible and never sells your information.
-          </p>
-
-          <div className="space-y-6">
-            <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
-              <div className="flex items-center space-x-3">
-                <Shield className="w-5 h-5 text-white/60" />
-                <div>
-                  <h3 className="font-medium">Background Monitoring</h3>
-                  <p className="text-white/50 text-sm">Allow app to monitor interaction patterns for stress estimation</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => handleToggle('monitoring_enabled')}
-                className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors ${settings.monitoring_enabled ? 'bg-green-500' : 'bg-white/20'}`}
-              >
-                <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${settings.monitoring_enabled ? 'translate-x-8' : 'translate-x-1'}`} />
-              </button>
-            </div>
-
-            <div className="flex gap-4">
-              <button 
-                onClick={handleExportData}
-                className="flex-1 flex items-center justify-center space-x-2 p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-colors text-sm font-medium"
-              >
-                <Download className="w-4 h-4" />
-                <span>Export My Data</span>
-              </button>
-              <button 
-                onClick={handleDeleteData}
-                className="flex-1 flex items-center justify-center space-x-2 p-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 rounded-xl transition-colors text-sm font-medium"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Delete All Data</span>
-              </button>
-            </div>
-          </div>
-        </motion.section>
-
-        <motion.section 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6"
-        >
-          <div className="flex items-center space-x-3 mb-6">
-            <Info className="w-5 h-5 text-shield-500" />
-            <h2 className="text-xl font-semibold">About & Contact Details</h2>
-          </div>
-          
-          <div className="space-y-4 text-sm text-white/60">
-            <div className="flex justify-between py-2 border-b border-white/5">
-              <span>Platform</span>
-              <span className="font-medium text-white/90">MindShield AI (SIH Edition)</span>
-            </div>
-            <div className="flex justify-between py-2 border-b border-white/5">
-              <span>Team Name</span>
-              <span className="font-bold text-shield-400">INSIGHT-X</span>
-            </div>
-            <div className="flex justify-between py-2 border-b border-white/5">
-              <span>Contact Email</span>
-              <a href="mailto:itsmeetbuddy1@gmail.com" className="font-medium text-cyan-400 hover:underline">
-                itsmeetbuddy1@gmail.com
-              </a>
-            </div>
-            <div className="flex justify-between py-2 border-b border-white/5">
-              <span>Version</span>
-              <span className="font-medium text-white/90">v1.0.0-production</span>
-            </div>
-            <p className="pt-2 leading-relaxed">
-              <strong>Disclaimer:</strong> MindShield AI is a supportive wellness tool and is not a replacement for professional mental health care. In an emergency, please contact local emergency services or a crisis hotline (988).
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-gray-200 dark:border-slate-800 shadow-sm">
+            <h3 className="font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2 text-lg">
+              <Settings className="w-5 h-5 text-gray-400" /> {t('profile.sensors.title', 'Sensor Permissions')}
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-slate-400 mb-6">
+              MindShield uses your camera and microphone exclusively for real-time stress analysis. Toggle access below.
             </p>
-          </div>
-        </motion.section>
+            
+            <div className="space-y-4">
+              {/* Camera Toggle */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-slate-950 rounded-2xl border border-gray-100 dark:border-slate-800">
+                <div className="flex items-center gap-4">
+                  <div className={`p-3 rounded-xl ${cameraEnabled ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-gray-200 dark:bg-slate-800 text-gray-500 dark:text-slate-500'}`}>
+                    <Camera className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-gray-900 dark:text-white">Camera Access</h4>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">Facial micro-expression tracking</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setCameraEnabled(!cameraEnabled)}
+                  className={`w-12 h-6 rounded-full transition-colors relative ${cameraEnabled ? 'bg-blue-500' : 'bg-gray-300 dark:bg-slate-700'}`}
+                >
+                  <div className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${cameraEnabled ? 'left-7' : 'left-1'}`} />
+                </button>
+              </div>
 
+              {/* Mic Toggle */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-slate-950 rounded-2xl border border-gray-100 dark:border-slate-800">
+                <div className="flex items-center gap-4">
+                  <div className={`p-3 rounded-xl ${micEnabled ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400' : 'bg-gray-200 dark:bg-slate-800 text-gray-500 dark:text-slate-500'}`}>
+                    <Mic className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-gray-900 dark:text-white">Microphone Access</h4>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">Voice prosody & tone analysis</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setMicEnabled(!micEnabled)}
+                  className={`w-12 h-6 rounded-full transition-colors relative ${micEnabled ? 'bg-blue-500' : 'bg-gray-300 dark:bg-slate-700'}`}
+                >
+                  <div className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${micEnabled ? 'left-7' : 'left-1'}`} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-gray-200 dark:border-slate-800 shadow-sm">
+            <h3 className="font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2 text-lg">
+              <Bell className="w-5 h-5 text-gray-400" /> Notifications
+            </h3>
+            <div className="space-y-4 text-sm font-medium text-gray-700 dark:text-slate-300">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" defaultChecked className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" />
+                Daily Check-in Reminders
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" defaultChecked className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" />
+                High Stress Intervention Alerts
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" />
+                Weekly Progress Reports
+              </label>
+            </div>
+          </div>
+
+        </div>
       </div>
     </div>
   );

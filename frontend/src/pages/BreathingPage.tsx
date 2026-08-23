@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useParams } from 'react-router-dom';
 import { X } from 'lucide-react';
-import { apiService } from '../services/api';
+import apiService from '../services/api';
 import toast from 'react-hot-toast';
 
 type Phase = 'INHALE' | 'HOLD' | 'EXHALE' | 'PREPARE' | 'DONE';

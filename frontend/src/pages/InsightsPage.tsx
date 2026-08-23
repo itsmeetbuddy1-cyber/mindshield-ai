@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Brain, TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Clock, Zap } from 'lucide-react';
-import { apiService } from '../services/api';
+import apiService from '../services/api';
 
 const InsightsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);

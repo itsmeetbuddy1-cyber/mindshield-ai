@@ -5,7 +5,7 @@ import {
   Cpu, Database, RefreshCw, Play, Trash2, ArrowRight, 
   Sparkles, ExternalLink, Activity, Users, LogOut 
 } from 'lucide-react';
-import { apiService } from '../services/api';
+import apiService from '../services/api';
 import toast from 'react-hot-toast';
 import { Link, useNavigate } from 'react-router-dom';
 

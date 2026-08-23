@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Calendar, Filter, Activity, TrendingDown, Zap } from 'lucide-react';
-import { apiService } from '../services/api';
+import apiService from '../services/api';
 
 const COLORS = ['#00a3ff', '#22d3ee', '#a855f7', '#f97316', '#22c55e'];
 

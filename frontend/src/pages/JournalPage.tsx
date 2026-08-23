@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, Plus, Search, Edit2, Trash2, X } from 'lucide-react';
-import { apiService } from '../services/api';
+import apiService from '../services/api';
 import type { JournalEntry } from '../types';
 import toast from 'react-hot-toast';
 
