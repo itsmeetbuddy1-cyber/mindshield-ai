@@ -2,17 +2,19 @@ import React, { useState, useEffect, useRef } from 'react';
 
 interface CameraAnalyzerProps {
   onCameraAnalysisComplete: (score: number, metrics: any) => void;
+  isStreamActive?: boolean;
 }
 
-const CameraAnalyzer: React.FC<CameraAnalyzerProps> = ({ onCameraAnalysisComplete }) => {
+const CameraAnalyzer: React.FC<CameraAnalyzerProps> = ({ onCameraAnalysisComplete, isStreamActive = false }) => {
   const [isEnabled, setIsEnabled] = useState(false);
-  const [permissionStatus, setPermissionStatus] = useState<'idle' | 'granted' | 'denied'>('idle');
-  const [statusMsg, setStatusMsg] = useState('Camera off');
+  const [permissionStatus, setPermissionStatus] = useState<'idle' | 'granted' | 'denied' | 'unavailable' | 'disabled'>('idle');
+  const [statusMsg, setStatusMsg] = useState('UNAVAILABLE');
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const requestFrameRef = useRef<number | null>(null);
+  const prevFrameRef = useRef<Uint8ClampedArray | null>(null);
 
   const stopCamera = () => {
     if (requestFrameRef.current) cancelAnimationFrame(requestFrameRef.current);
@@ -21,12 +23,13 @@ const CameraAnalyzer: React.FC<CameraAnalyzerProps> = ({ onCameraAnalysisComplet
       streamRef.current = null;
     }
     setIsEnabled(false);
-    setStatusMsg('Camera off');
+    setStatusMsg('DISABLED');
+    prevFrameRef.current = null;
   };
 
   const startCamera = async () => {
     try {
-      setStatusMsg('Requesting permission...');
+      setStatusMsg('PROCESSING');
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
       
       streamRef.current = stream;
@@ -35,9 +38,11 @@ const CameraAnalyzer: React.FC<CameraAnalyzerProps> = ({ onCameraAnalysisComplet
       }
       setIsEnabled(true);
       setPermissionStatus('granted');
-      setStatusMsg('Analyzing motion...');
+      setStatusMsg('ACTIVE');
 
       let frameCount = 0;
+      let motionAccumulator = 0;
+      
       const processFrame = () => {
         if (!videoRef.current || !canvasRef.current) return;
         
@@ -47,17 +52,47 @@ const CameraAnalyzer: React.FC<CameraAnalyzerProps> = ({ onCameraAnalysisComplet
         
         if (ctx && video.readyState === video.HAVE_ENOUGH_DATA) {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          // Dummy logic: in a real scenario we'd run face-api.js or similar
-          frameCount++;
           
-          if (frameCount % 60 === 0) { // roughly every 2 seconds
-            // Mock result
-            const mockScore = Math.floor(Math.random() * 40) + 20;
-            onCameraAnalysisComplete(mockScore, {
-              motion: Math.random(),
-              blinkRate: 15,
-              luminance: 0.8
-            });
+          frameCount++;
+          // 10-15 FPS approximation
+          if (frameCount % 4 === 0) {
+            const currentFrame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = currentFrame.data;
+            let diff = 0;
+            let luminanceSum = 0;
+            
+            if (prevFrameRef.current) {
+              const prevData = prevFrameRef.current;
+              for (let i = 0; i < data.length; i += 4) {
+                const rDiff = Math.abs(data[i] - prevData[i]);
+                const gDiff = Math.abs(data[i+1] - prevData[i+1]);
+                const bDiff = Math.abs(data[i+2] - prevData[i+2]);
+                diff += (rDiff + gDiff + bDiff) / 3;
+                
+                const luminance = 0.299*data[i] + 0.587*data[i+1] + 0.114*data[i+2];
+                luminanceSum += luminance;
+              }
+              
+              const numPixels = canvas.width * canvas.height;
+              const averageDiff = diff / numPixels;
+              
+              const motionDelta = Math.min(1.0, averageDiff / 50); // Normalized 0-1
+              const motionEnergy = Math.min(100, Math.round(motionDelta * 100));
+              const visualActivity = motionEnergy;
+              const luminanceAvg = luminanceSum / numPixels;
+              
+              const camera_stress_score = Math.min(100, Math.max(0, 30 + (motionDelta * 40)));
+              
+              onCameraAnalysisComplete(camera_stress_score, {
+                motionEnergy,
+                visualActivity,
+                luminance: luminanceAvg,
+                camera_stress_score
+              });
+            }
+            
+            // Store current frame for next comparison
+            prevFrameRef.current = new Uint8ClampedArray(data);
           }
         }
         
@@ -71,7 +106,7 @@ const CameraAnalyzer: React.FC<CameraAnalyzerProps> = ({ onCameraAnalysisComplet
     } catch (err) {
       console.error('Camera access error:', err);
       setPermissionStatus('denied');
-      setStatusMsg('Camera access denied or unavailable.');
+      setStatusMsg('DENIED');
     }
   };
 
@@ -84,6 +119,22 @@ const CameraAnalyzer: React.FC<CameraAnalyzerProps> = ({ onCameraAnalysisComplet
   };
 
   useEffect(() => {
+    if (isStreamActive && !isEnabled) {
+        startCamera();
+    } else if (!isStreamActive && isEnabled) {
+        stopCamera();
+    }
+    // eslint-disable-next-line
+  }, [isStreamActive]);
+
+  useEffect(() => {
+    if (navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
+        setStatusMsg('AVAILABLE');
+        setPermissionStatus('idle');
+    } else {
+        setStatusMsg('UNAVAILABLE');
+        setPermissionStatus('unavailable');
+    }
     return () => stopCamera();
   }, []);
 
@@ -103,7 +154,7 @@ const CameraAnalyzer: React.FC<CameraAnalyzerProps> = ({ onCameraAnalysisComplet
       </div>
 
       <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-        Analyzes micro-expressions and head motion to detect elevated distress levels.
+        Experimental visual interaction signal (Privacy-first on-device). Analyzes motion energy to detect elevated distress levels.
       </p>
 
       {permissionStatus === 'denied' && (

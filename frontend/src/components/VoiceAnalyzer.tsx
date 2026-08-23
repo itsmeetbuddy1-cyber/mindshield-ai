@@ -2,12 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 
 interface VoiceAnalyzerProps {
   onVoiceAnalysisComplete: (score: number, features: any) => void;
+  isStreamActive?: boolean;
 }
 
-const VoiceAnalyzer: React.FC<VoiceAnalyzerProps> = ({ onVoiceAnalysisComplete }) => {
-  const [permissionStatus, setPermissionStatus] = useState<'idle' | 'granted' | 'denied'>('idle');
+const VoiceAnalyzer: React.FC<VoiceAnalyzerProps> = ({ onVoiceAnalysisComplete, isStreamActive = false }) => {
+  const [permissionStatus, setPermissionStatus] = useState<'idle' | 'granted' | 'denied' | 'unavailable' | 'disabled'>('idle');
   const [isRecording, setIsRecording] = useState(false);
-  const [demoMode, setDemoMode] = useState(false);
+  const [statusMsg, setStatusMsg] = useState('DISABLED');
   
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -35,16 +36,11 @@ const VoiceAnalyzer: React.FC<VoiceAnalyzerProps> = ({ onVoiceAnalysisComplete }
   }, []);
 
   const startRecording = async () => {
-    if (permissionStatus === 'denied') {
-      setDemoMode(true);
-      simulateAnalysis();
-      return;
-    }
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       setPermissionStatus('granted');
       setIsRecording(true);
+      setStatusMsg('ACTIVE');
       mediaStreamRef.current = stream;
 
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -60,52 +56,44 @@ const VoiceAnalyzer: React.FC<VoiceAnalyzerProps> = ({ onVoiceAnalysisComplete }
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
 
-      let frameCount = 0;
-      let totalVolume = 0;
-      let peaks = 0;
+      let lastCall = performance.now();
 
-      const analyzeAudio = () => {
+      const analyzeAudio = (time: number) => {
         analyser.getByteFrequencyData(dataArray);
         
         let sum = 0;
+        let peakFreq = 0;
         for (let i = 0; i < bufferLength; i++) {
           sum += dataArray[i];
+          if (dataArray[i] > peakFreq) peakFreq = dataArray[i];
         }
-        const average = sum / bufferLength;
-        setVolumeLevel(average);
         
-        totalVolume += average;
-        if (average > 100) peaks++;
+        const rms = Math.sqrt(sum / bufferLength); // Rough RMS
+        const normalizedVolume = Math.min(100, (rms / 255) * 100 * 2); // Boost a bit for visibility
+        setVolumeLevel(normalizedVolume);
         
-        frameCount++;
-
-        if (frameCount > 300) { // Approx 5 seconds
-          stopRecording();
-          const avgVolume = totalVolume / frameCount;
-          
-          // Heuristic stress calculation based on volume and peaks
-          let score = 30; // base
-          if (avgVolume > 40) score += 20;
-          if (peaks > 20) score += 30;
-          score = Math.min(100, Math.max(0, score));
-
-          onVoiceAnalysisComplete(score, {
-            pitchVariance: Math.random() * 50,
-            intensity: avgVolume,
-            peaks: peaks
-          });
-        } else {
-          requestAnimationFrameRef.current = requestAnimationFrame(analyzeAudio);
+        if (time - lastCall > 500) { // Every 500ms send an update
+           const voiceActivity = normalizedVolume;
+           const voice_stress_score = Math.min(100, Math.max(0, 20 + (voiceActivity * 0.8) + (peakFreq > 150 ? 10 : 0)));
+           
+           onVoiceAnalysisComplete(voice_stress_score, {
+             voiceActivity,
+             peakFreq,
+             rms,
+             voice_stress_score
+           });
+           lastCall = time;
         }
+
+        requestAnimationFrameRef.current = requestAnimationFrame(analyzeAudio);
       };
 
-      analyzeAudio();
+      requestAnimationFrameRef.current = requestAnimationFrame(analyzeAudio);
 
     } catch (err) {
       console.error("Microphone access denied or error:", err);
       setPermissionStatus('denied');
-      setDemoMode(true);
-      simulateAnalysis();
+      setStatusMsg('DENIED');
     }
   };
 
@@ -115,34 +103,29 @@ const VoiceAnalyzer: React.FC<VoiceAnalyzerProps> = ({ onVoiceAnalysisComplete }
     }
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach(track => track.stop());
+      mediaStreamRef.current = null;
     }
     if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
       audioContextRef.current.close();
+      audioContextRef.current = null;
     }
     setIsRecording(false);
+    setStatusMsg('DISABLED');
     setVolumeLevel(0);
   };
 
-  const simulateAnalysis = () => {
-    setIsRecording(true);
-    let mockVolume = 0;
-    const interval = setInterval(() => {
-      mockVolume = Math.random() * 100;
-      setVolumeLevel(mockVolume);
-    }, 100);
+  useEffect(() => {
+     if (isStreamActive && !isRecording) {
+         startRecording();
+     } else if (!isStreamActive && isRecording) {
+         stopRecording();
+     }
+     // eslint-disable-next-line
+  }, [isStreamActive]);
 
-    setTimeout(() => {
-      clearInterval(interval);
-      setIsRecording(false);
-      setVolumeLevel(0);
-      onVoiceAnalysisComplete(65, {
-        pitchVariance: 32,
-        intensity: 55,
-        peaks: 12,
-        simulated: true
-      });
-      setDemoMode(false);
-    }, 4000);
+  const toggleMic = () => {
+      if (isRecording) stopRecording();
+      else startRecording();
   };
 
   return (
@@ -152,8 +135,9 @@ const VoiceAnalyzer: React.FC<VoiceAnalyzerProps> = ({ onVoiceAnalysisComplete }
           🎙️ Voice Stress Analysis
         </h3>
         <div className="flex items-center gap-2">
-          {permissionStatus === 'granted' && <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-medium">Mic Granted</span>}
-          {permissionStatus === 'denied' && <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full font-medium">Mic Denied</span>}
+           <span className={`px-2 py-1 text-xs rounded-full font-medium ${statusMsg === 'ACTIVE' ? 'bg-green-100 text-green-700' : statusMsg === 'DENIED' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>
+               {statusMsg}
+           </span>
         </div>
       </div>
       
@@ -163,7 +147,7 @@ const VoiceAnalyzer: React.FC<VoiceAnalyzerProps> = ({ onVoiceAnalysisComplete }
 
       <div className="flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700 mb-4">
         {isRecording ? (
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center cursor-pointer" onClick={toggleMic}>
             <div className="relative flex items-center justify-center w-20 h-20 mb-4">
               <div 
                 className="absolute bg-blue-500/30 rounded-full transition-all duration-75"
@@ -174,12 +158,12 @@ const VoiceAnalyzer: React.FC<VoiceAnalyzerProps> = ({ onVoiceAnalysisComplete }
               </div>
             </div>
             <p className="text-sm font-medium text-blue-600 dark:text-blue-400 animate-pulse">
-              {demoMode ? 'Simulating Analysis...' : 'Listening & Processing Locally...'}
+              Listening & Processing Locally...
             </p>
           </div>
         ) : (
           <button 
-            onClick={startRecording}
+            onClick={toggleMic}
             className="w-16 h-16 bg-slate-200 dark:bg-slate-700 hover:bg-blue-500 hover:text-white dark:hover:bg-blue-600 text-2xl rounded-full flex items-center justify-center transition-colors mb-4"
           >
             🎙️

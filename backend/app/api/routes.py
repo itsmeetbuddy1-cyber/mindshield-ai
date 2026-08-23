@@ -181,13 +181,19 @@ def analyze_multimodal(payload: Dict[str, Any]):
     """Fuse multiple stress signals into a single explainable result."""
     text = payload.get("text")
     text_result = None
-    text_score = None
+    text_score = payload.get("text_score")
+    
     if text:
         text_result = analyze_text_stress(text)
-        text_score = text_result["text_stress_score"] / 100.0
+        text_score = text_result["text_stress_score"]
     
+    self_report = payload.get("self_report_score")
+    # If self_report is 1-10 (e.g. 7), scale to 70
+    if self_report is not None and 1.0 <= float(self_report) <= 10.0:
+        self_report = float(self_report) * 10.0
+        
     result = fuse_signals(
-        self_report_score=payload.get("self_report_score"),
+        self_report_score=self_report,
         text_score=text_score,
         voice_score=payload.get("voice_score"),
         camera_score=payload.get("camera_score"),

@@ -1,11 +1,12 @@
 from typing import Dict, Any, Optional, List
 
+# Standard weight allocation (must sum to 1.0)
 DEFAULT_WEIGHTS = {
-    "self_report": 0.30,
-    "text_analysis": 0.25,
+    "self_report": 0.25,
+    "text_analysis": 0.30,
+    "interaction_patterns": 0.20,
     "voice_features": 0.15,
-    "camera_features": 0.10,
-    "interaction_patterns": 0.20
+    "camera_features": 0.10
 }
 
 def fuse_signals(
@@ -16,76 +17,117 @@ def fuse_signals(
     interaction_score: Optional[float] = None,
     weights: Optional[Dict[str, float]] = None
 ) -> Dict[str, Any]:
-    """Fuse multimodal stress signals into a single score with explanations."""
-    w = weights or DEFAULT_WEIGHTS.copy()
+    """
+    Fuse multimodal stress signals into a single score with explainability.
+    Dynamically normalizes weights across whatever signals are currently available.
+    All incoming scores should be 0.0 to 100.0 (or 0.0 to 1.0 which will be auto-scaled to 100).
+    """
+    w_config = weights or DEFAULT_WEIGHTS.copy()
     
-    signals_used = []
-    total_weight = 0.0
-    weighted_sum = 0.0
-    signal_contributions = []
+    # Scale any 0-1 scores to 0-100
+    def normalize_score(s: Optional[float]) -> Optional[float]:
+        if s is None:
+            return None
+        val = float(s)
+        if 0.0 <= val <= 1.0 and val > 0.0:
+            # Check if it was fractional (e.g. 0.75 -> 75.0)
+            # If exactly 1.0, could be 1/10 self report or 1/100, but in 0-100 system 1 is 1.
+            return val * 100.0
+        return max(0.0, min(100.0, val))
+
+    s_self = normalize_score(self_report_score)
+    s_text = normalize_score(text_score)
+    s_voice = normalize_score(voice_score)
+    s_camera = normalize_score(camera_score)
+    s_interaction = normalize_score(interaction_score)
     
-    signal_data = [
-        ("self_report", self_report_score, "Self-reported stress level"),
-        ("text_analysis", text_score, "Text-based stress analysis"),
-        ("voice_features", voice_score, "Voice pattern analysis"),
-        ("camera_features", camera_score, "Facial expression analysis"),
-        ("interaction_patterns", interaction_score, "Interaction behavior patterns")
+    raw_signals = [
+        ("self_report", s_self, "Self-Reported Stress", w_config.get("self_report", 0.25)),
+        ("text_analysis", s_text, "Text & Language Analysis", w_config.get("text_analysis", 0.30)),
+        ("interaction_patterns", s_interaction, "Interaction Dynamics", w_config.get("interaction_patterns", 0.20)),
+        ("voice_features", s_voice, "Voice Acoustic Cues", w_config.get("voice_features", 0.15)),
+        ("camera_features", s_camera, "Visual Interaction Signal", w_config.get("camera_features", 0.10))
     ]
     
-    for key, score, label in signal_data:
+    available_signals = [s for s in raw_signals if s[1] is not None]
+    total_active_weight = sum(s[3] for s in available_signals)
+    
+    if total_active_weight == 0.0:
+        # Fallback if literally no signals provided
+        return {
+            "fused_score": 35.0,
+            "category": "calm",
+            "confidence": 0.3,
+            "signals_used": [],
+            "signals_available": 0,
+            "signals_total": 5,
+            "signal_contributions": [],
+            "explanations": ["Default baseline: No active signals detected."],
+            "recommendation": "Maintain your current routine."
+        }
+    
+    weighted_sum = 0.0
+    signal_contributions = []
+    signals_used = []
+    
+    for key, score, label, base_weight in raw_signals:
         if score is not None:
-            weight = w.get(key, 0.0)
-            contribution = score * weight
-            weighted_sum += contribution
-            total_weight += weight
+            # Normalized effective weight
+            effective_weight = base_weight / total_active_weight
+            points_contributed = score * effective_weight
+            weighted_sum += points_contributed
             signals_used.append(key)
+            
             signal_contributions.append({
                 "signal": key,
                 "label": label,
                 "score": round(score, 1),
-                "weight": round(weight * 100, 1),
-                "contribution": round(contribution, 1),
+                "base_weight": round(base_weight * 100, 1),
+                "effective_weight": round(effective_weight * 100, 1),
+                "contribution": round(points_contributed, 1),
                 "available": True
             })
         else:
             signal_contributions.append({
                 "signal": key,
-                "label": label if key != "self_report" else "Self-reported stress level",
+                "label": label,
                 "score": None,
-                "weight": round(w.get(key, 0.0) * 100, 1),
+                "base_weight": round(base_weight * 100, 1),
+                "effective_weight": 0.0,
                 "contribution": 0.0,
                 "available": False
             })
+            
+    fused_score = round(max(0.0, min(100.0, weighted_sum)), 1)
     
-    # Normalize score by actual weights used
-    fused_score = (weighted_sum / total_weight * 100) if total_weight > 0 else 50.0
-    fused_score = max(0, min(100, fused_score))
-    
-    # Category
-    if fused_score < 30:
+    # Classify
+    if fused_score < 35.0:
         category = "calm"
-    elif fused_score < 50:
+    elif fused_score < 55.0:
         category = "mild"
-    elif fused_score < 70:
+    elif fused_score < 75.0:
         category = "elevated"
     else:
         category = "high"
+        
+    confidence = round(min(0.98, 0.4 + (len(signals_used) / 5.0) * 0.58), 2)
     
-    # Confidence based on how many signals we have
-    confidence = len(signals_used) / 5.0 * 0.95
-    
-    # Explanations
+    # Explainable reasons
     explanations = []
-    sorted_contributions = sorted([s for s in signal_contributions if s["available"]], 
-                                   key=lambda x: x["contribution"], reverse=True)
-    for s in sorted_contributions:
-        if s["contribution"] > 5:
-            explanations.append(f"{s['label']} contributed {s['contribution']:.0f}% to overall score (raw: {s['score']:.0f}/100)")
+    active_sorted = sorted([s for s in signal_contributions if s["available"]], key=lambda x: x["contribution"], reverse=True)
     
+    for s in active_sorted:
+        if s["score"] >= 70:
+            explanations.append(f"{s['label']} indicates heightened stress ({s['score']:.0f}/100), contributing {s['contribution']:.1f} pts.")
+        elif s["score"] <= 30:
+            explanations.append(f"{s['label']} shows calm baseline ({s['score']:.0f}/100), reducing overall stress indicator.")
+        else:
+            explanations.append(f"{s['label']} is in moderate range ({s['score']:.0f}/100, {s['contribution']:.1f} pts).")
+            
     return {
-        "fused_score": round(fused_score, 1),
+        "fused_score": fused_score,
         "category": category,
-        "confidence": round(confidence, 3),
+        "confidence": confidence,
         "signals_used": signals_used,
         "signals_available": len(signals_used),
         "signals_total": 5,
@@ -96,9 +138,9 @@ def fuse_signals(
 
 def _get_recommendation(category: str) -> str:
     recs = {
-        "calm": "You're in a good state. Consider maintaining your routine with a light mindfulness exercise.",
-        "mild": "Mild stress detected. A short break or the 4-7-8 breathing technique could help.",
-        "elevated": "Elevated stress levels. Step away from stressors and try a guided grounding exercise.",
-        "high": "High stress detected. An immediate pause is recommended. Try our emergency cooling technique or reach out for support."
+        "calm": "You appear to be in a grounded, calm state. A brief mindful pause can help preserve this balance.",
+        "mild": "Mild stress indicators noted. Try a 2-minute reset or 4-6 breathing pacing.",
+        "elevated": "Elevated stress detected. Step away from stressors and engage in guided 5-4-3-2-1 grounding.",
+        "high": "High distress indicators. We recommend taking an immediate pause with guided cooling or reaching out for support."
     }
     return recs.get(category, recs["mild"])

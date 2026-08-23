@@ -40,6 +40,7 @@ const MainLayout = () => {
   const navItems = [
     { name: t('nav.dashboard', 'Dashboard'), path: '/dashboard', icon: LayoutDashboard },
     { name: t('nav.shield_ai', 'Shield AI'), path: '/assistant', icon: MessageCircle },
+    { name: t('nav.talk_to_ai', 'Talk to AI 🎙️'), path: '/voice', icon: MessageCircle },
     { name: t('nav.insights', 'Insights'), path: '/insights', icon: Brain },
     { name: t('nav.analytics', 'Analytics'), path: '/analytics', icon: BarChart3 },
     { name: t('nav.toolkit', 'Toolkit'), path: '/toolkit', icon: Heart },

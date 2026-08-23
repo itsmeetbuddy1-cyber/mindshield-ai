@@ -22,6 +22,7 @@ import HostPortalPage from './pages/HostPortalPage'
 import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
 import SIHExplainerPage from './pages/SIHExplainerPage'
+import VoiceAssistantPage from './pages/VoiceAssistantPage'
 
 function App() {
   return (
@@ -46,6 +47,7 @@ function App() {
               <Route element={<MainLayout />}>
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/assistant" element={<AssistantPage />} />
+                <Route path="/voice" element={<VoiceAssistantPage />} />
                 <Route path="/insights" element={<InsightsPage />} />
                 <Route path="/analytics" element={<AnalyticsPage />} />
                 <Route path="/toolkit" element={<ToolkitPage />} />

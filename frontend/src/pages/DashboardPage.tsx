@@ -1,15 +1,62 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { Activity, Brain, Heart, Wind, Shield, Calendar, Mic, Camera, ChevronRight, Info } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import CameraAnalyzer from '../components/CameraAnalyzer';
+import VoiceAnalyzer from '../components/VoiceAnalyzer';
+import SignalDashboard from '../components/SignalDashboard';
+import DeveloperDebugPanel from '../components/DeveloperDebugPanel';
 
 const DashboardPage: React.FC = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const navigate = useNavigate();
+  
   const [showXai, setShowXai] = useState(false);
-  const [liveStress] = useState(42);
+  
+  // Multimodal State
+  const [liveStress, setLiveStress] = useState(42);
+  const [selfReport, setSelfReport] = useState(5);
+  
+  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraMetrics, setCameraMetrics] = useState({ score: 0, motion: 0 });
+  
+  const [micActive, setMicActive] = useState(false);
+  const [micMetrics, setMicMetrics] = useState({ score: 0, volume: 0 });
+
+  const [history, setHistory] = useState<number[]>([40, 42, 45, 50, 48, 45, 42, 40, 41, 42, 43, 42]);
+
+  // Recalculate combined stress
+  useEffect(() => {
+     let textStress = 35; // base
+     let selfStress = selfReport * 10;
+     let voiceStress = micActive && micMetrics.score > 0 ? micMetrics.score : 35;
+     let camStress = cameraActive && cameraMetrics.score > 0 ? cameraMetrics.score : 35;
+
+     let weights = { text: 0.3, self: 0.25, voice: 0.15, camera: 0.1, interaction: 0.2 };
+     let combined = (textStress * weights.text) + (selfStress * weights.self) + (voiceStress * weights.voice) + (camStress * weights.camera) + (40 * weights.interaction);
+     
+     setLiveStress(Math.round(combined));
+     
+     setHistory(prev => {
+         const next = [...prev.slice(1), Math.round(combined)];
+         return next;
+     });
+  }, [selfReport, cameraMetrics, micMetrics, cameraActive, micActive]);
+
+  const handleSimulateHigh = () => {
+      setSelfReport(9);
+      setMicMetrics({ score: 85, volume: 80 });
+      setCameraMetrics({ score: 90, motion: 70 });
+  };
+
+  const handleSimulateCalm = () => {
+      setSelfReport(2);
+      setMicMetrics({ score: 20, volume: 10 });
+      setCameraMetrics({ score: 25, motion: 5 });
+  };
 
   const stats = [
     { title: t('dashboard.stats.sessions', 'Sessions'), value: '12', icon: Shield, color: 'text-blue-500', bg: 'bg-blue-500/10' },
@@ -18,7 +65,7 @@ const DashboardPage: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto pb-20">
       {/* Header */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -29,13 +76,21 @@ const DashboardPage: React.FC = () => {
             {t('dashboard.subtitle', "Here's a quick overview of your well-being today.")}
           </p>
         </div>
-        <Link 
-          to="/checkin" 
-          className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors shadow-sm flex items-center gap-2"
-        >
-          <Heart className="w-4 h-4" />
-          {t('dashboard.quick_checkin', 'Quick Check-in')}
-        </Link>
+        <div className="flex gap-3">
+            <button 
+                onClick={() => navigate('/voice')}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors shadow-sm flex items-center gap-2"
+            >
+                🎙️ Talk to Shield AI (Voice Mode)
+            </button>
+            <Link 
+            to="/checkin" 
+            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors shadow-sm flex items-center gap-2"
+            >
+            <Heart className="w-4 h-4" />
+            {t('dashboard.quick_checkin', 'Quick Check-in')}
+            </Link>
+        </div>
       </header>
 
       {/* Main Grid */}
@@ -44,6 +99,18 @@ const DashboardPage: React.FC = () => {
         {/* Left Column - Live Telemetry & Quick Analyzers */}
         <div className="lg:col-span-2 space-y-6">
           
+          {/* Signal Dashboard */}
+          <SignalDashboard 
+              cameraStatus={cameraActive ? 'Active' : 'Off'}
+              cameraSignal={cameraMetrics.motion}
+              micStatus={micActive ? 'Active' : 'Off'}
+              micSignal={micMetrics.volume}
+              textStatus="Ready"
+              textSentiment="Neutral"
+              selfReportVal={selfReport}
+              interactionCadence={45}
+          />
+
           {/* Live Telemetry Card */}
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-gray-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
             <div className="flex justify-between items-start mb-6">
@@ -63,7 +130,7 @@ const DashboardPage: React.FC = () => {
               </button>
             </div>
 
-            <div className="flex flex-col md:flex-row items-center gap-8">
+            <div className="flex flex-col md:flex-row items-center gap-8 mb-6">
               <div className="relative w-40 h-40 flex items-center justify-center">
                 <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                   <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="8" className="text-gray-100 dark:text-slate-800" />
@@ -71,7 +138,7 @@ const DashboardPage: React.FC = () => {
                     cx="50" cy="50" r="45" 
                     fill="none" stroke="currentColor" strokeWidth="8" 
                     strokeDasharray={`${liveStress * 2.83} 283`}
-                    className="text-blue-500 transition-all duration-1000 ease-out" 
+                    className={`${liveStress > 70 ? 'text-red-500' : liveStress > 40 ? 'text-yellow-500' : 'text-blue-500'} transition-all duration-1000 ease-out`} 
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
@@ -80,19 +147,31 @@ const DashboardPage: React.FC = () => {
                 </div>
               </div>
               
-              <div className="flex-1 w-full">
-                {/* Mock LiveStressGraph */}
-                <div className="h-32 bg-gray-50 dark:bg-slate-950 rounded-xl border border-gray-100 dark:border-slate-800 flex items-end px-2 pb-2 gap-1 relative">
+              <div className="flex-1 w-full flex flex-col gap-4">
+                {/* LiveStressGraph */}
+                <div className="h-24 bg-gray-50 dark:bg-slate-950 rounded-xl border border-gray-100 dark:border-slate-800 flex items-end px-2 pb-2 gap-1 relative">
                   <div className="absolute top-2 left-3 text-xs text-gray-400 font-medium">Timeline (last 60s)</div>
-                  {[40, 42, 45, 50, 48, 45, 42, 40, 41, 42, 43, 42].map((val, i) => (
+                  {history.map((val, i) => (
                     <motion.div 
                       key={i}
                       initial={{ height: 0 }}
                       animate={{ height: `${val}%` }}
-                      transition={{ delay: i * 0.1 }}
-                      className="flex-1 bg-blue-500/80 rounded-t-sm"
+                      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                      className={`flex-1 ${val > 70 ? 'bg-red-500/80' : val > 40 ? 'bg-yellow-500/80' : 'bg-blue-500/80'} rounded-t-sm`}
                     />
                   ))}
+                </div>
+                
+                {/* Interactive Slider right on telemetry card */}
+                <div className="bg-gray-50 dark:bg-slate-950 p-3 rounded-xl border border-gray-100 dark:border-slate-800">
+                    <div className="flex justify-between text-xs text-gray-500 mb-1">
+                        <span>Self-Report Stress: {selfReport}</span>
+                    </div>
+                    <input 
+                        type="range" min="1" max="10" value={selfReport} 
+                        onChange={(e) => setSelfReport(parseInt(e.target.value))}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700" 
+                    />
                 </div>
               </div>
             </div>
@@ -112,19 +191,19 @@ const DashboardPage: React.FC = () => {
                       <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300 mb-1">
                         <Mic className="w-4 h-4 text-purple-500" /> Voice Prosody
                       </div>
-                      <div className="font-medium text-gray-900 dark:text-white">Normal pitch & speed (+0)</div>
+                      <div className="font-medium text-gray-900 dark:text-white">Score: {Math.round(micMetrics.score)}</div>
                     </div>
                     <div className="p-3 bg-gray-50 dark:bg-slate-950 rounded-xl">
                       <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300 mb-1">
                         <Camera className="w-4 h-4 text-emerald-500" /> Facial Micro-expr
                       </div>
-                      <div className="font-medium text-gray-900 dark:text-white">Neutral baseline (+10)</div>
+                      <div className="font-medium text-gray-900 dark:text-white">Score: {Math.round(cameraMetrics.score)}</div>
                     </div>
                     <div className="p-3 bg-gray-50 dark:bg-slate-950 rounded-xl">
                       <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300 mb-1">
-                        <Brain className="w-4 h-4 text-blue-500" /> Context/Text
+                        <Brain className="w-4 h-4 text-blue-500" /> Self-Report
                       </div>
-                      <div className="font-medium text-gray-900 dark:text-white">Recent keywords: 'busy' (+32)</div>
+                      <div className="font-medium text-gray-900 dark:text-white">Value: {selfReport}/10</div>
                     </div>
                   </div>
                 </motion.div>
@@ -132,26 +211,22 @@ const DashboardPage: React.FC = () => {
             </AnimatePresence>
           </div>
 
-          {/* Multimodal Quick Analyzers */}
+          {/* Analyzers */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <button className="flex items-center gap-4 p-5 bg-white dark:bg-slate-900 rounded-3xl border border-gray-200 dark:border-slate-800 hover:border-purple-300 dark:hover:border-purple-500/50 hover:shadow-md transition-all text-left group">
-              <div className="w-12 h-12 bg-purple-100 dark:bg-purple-500/20 rounded-2xl flex items-center justify-center text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform">
-                <Mic className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-900 dark:text-white">Voice Analyzer</h3>
-                <p className="text-sm text-gray-500 dark:text-slate-400">Speak to check stress levels</p>
-              </div>
-            </button>
-            <button className="flex items-center gap-4 p-5 bg-white dark:bg-slate-900 rounded-3xl border border-gray-200 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-500/50 hover:shadow-md transition-all text-left group">
-              <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-500/20 rounded-2xl flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform">
-                <Camera className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-900 dark:text-white">Camera Analyzer</h3>
-                <p className="text-sm text-gray-500 dark:text-slate-400">Facial micro-expression check</p>
-              </div>
-            </button>
+              <CameraAnalyzer 
+                  isStreamActive={cameraActive}
+                  onCameraAnalysisComplete={(score, metrics) => {
+                      setCameraActive(true);
+                      setCameraMetrics({ score, motion: metrics.motionEnergy });
+                  }}
+              />
+              <VoiceAnalyzer 
+                  isStreamActive={micActive}
+                  onVoiceAnalysisComplete={(score, features) => {
+                      setMicActive(true);
+                      setMicMetrics({ score, volume: features.voiceActivity });
+                  }}
+              />
           </div>
         </div>
 
@@ -189,6 +264,20 @@ const DashboardPage: React.FC = () => {
         </div>
 
       </div>
+
+      <DeveloperDebugPanel 
+          textStress={35}
+          selfReport={selfReport * 10}
+          voiceActivity={micMetrics.volume}
+          cameraMotion={cameraMetrics.motion}
+          weights={{ text: 30, self: 25, voice: 15, camera: 10, interaction: 20 }}
+          finalScore={liveStress}
+          confidence={85}
+          onSimulateHigh={handleSimulateHigh}
+          onSimulateCalm={handleSimulateCalm}
+          onToggleCamera={() => setCameraActive(false)}
+          onToggleMic={() => setMicActive(false)}
+      />
     </div>
   );
 };
