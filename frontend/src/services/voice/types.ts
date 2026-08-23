@@ -1,4 +1,16 @@
-export type VoiceState = 'IDLE' | 'INITIALIZING' | 'LISTENING' | 'USER_SPEAKING' | 'PROCESSING' | 'AI_SPEAKING' | 'INTERRUPTED' | 'RECOVERING' | 'ERROR' | 'STOPPED';
+export type VoiceState = 
+  | 'IDLE' 
+  | 'STARTING' 
+  | 'LISTENING' 
+  | 'USER_SPEAKING' 
+  | 'PROCESSING' 
+  | 'AI_SPEAKING' 
+  | 'INTERRUPTED' 
+  | 'RECOVERING' 
+  | 'STOPPING' 
+  | 'STOPPED' 
+  | 'ERROR';
+
 export type VoiceMode = 'CONVERSATION' | 'PUSH_TO_TALK';
 export type SpeechRate = 'slow' | 'normal' | 'fast';
 export type VoiceCommand = 'STOP' | 'END_SESSION' | 'SPEAK_SLOWER' | 'SPEAK_FASTER' | 'SPEAK_NORMAL' | 'LANG_HINDI' | 'LANG_GUJARATI' | 'LANG_ENGLISH' | 'REPEAT' | null;
@@ -10,6 +22,7 @@ export interface SpeechInputProvider {
   onTranscript: (text: string, isFinal: boolean) => void;
   onError: (error: string, isFatal: boolean) => void;
   isSupported: boolean;
+  isListening(): boolean;
 }
 
 export interface SpeechOutputProvider {
@@ -22,21 +35,30 @@ export interface SpeechOutputProvider {
 }
 
 export interface VoiceTelemetry {
+  sessionId: string;
+  turnId: string;
+  requestId: string;
   state: VoiceState;
   mode: VoiceMode;
   turnCount: number;
   language: string;
   rate: SpeechRate;
   audioLevel: number;
-  vadActive: boolean;
-  sttEngine: string;
-  ttsEngine: string;
+  micStatus: 'ACTIVE' | 'INACTIVE';
+  sttStatus: 'ACTIVE' | 'INACTIVE';
+  vadStatus: 'ACTIVE' | 'INACTIVE';
+  aiStatus: 'IDLE' | 'PROCESSING';
+  ttsStatus: 'ACTIVE' | 'INACTIVE';
+  currentTranscript: string;
+  currentTopic: string;
+  conversationSummary: string;
+  stressScore: number;
+  stressTrend: string;
   lastCommand: string | null;
+  lastEvent: string;
   lastError: string | null;
   recoveryCount: number;
+  retryCount: number;
   sessionDuration: number;
-  currentTopic?: string;
-  conversationSummary?: string;
-  stressScore?: number;
-  stressTrend?: string;
 }
+

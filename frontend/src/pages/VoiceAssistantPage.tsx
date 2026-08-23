@@ -36,13 +36,13 @@ export default function VoiceAssistantPage() {
   const [stressLevel, setStressLevel] = useState(45);
 
   useEffect(() => {
-    const cleanup1 = voiceAgentEngine.onTelemetry((t) => {
+    const cleanup1 = voiceAgentEngine.onTelemetry((t: VoiceTelemetry) => {
       setTelemetry(t);
       if (t.audioLevel > 20) {
         setStressLevel(prev => Math.min(95, Math.max(20, prev + (t.audioLevel > 60 ? 1 : -0.5))));
       }
     });
-    const cleanup2 = voiceAgentEngine.onTranscript((text) => {
+    const cleanup2 = voiceAgentEngine.onTranscript((text: string) => {
       setTranscript(text);
     });
 
@@ -336,19 +336,21 @@ export default function VoiceAssistantPage() {
 
             <div className="space-y-3 text-xs font-mono">
               <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
-                <div className="text-[11px] text-slate-500 uppercase font-bold tracking-wider">State Machine</div>
-                <div className="flex justify-between"><span className="text-slate-400">Current State:</span> <span className="text-emerald-400 font-bold">{telemetry.state}</span></div>
-                <div className="flex justify-between"><span className="text-slate-400">Mode:</span> <span>{telemetry.mode}</span></div>
-                <div className="flex justify-between"><span className="text-slate-400">Turn Sequence:</span> <span className="text-cyan-400 font-bold">{telemetry.turnCount}</span></div>
+                <div className="text-[11px] text-cyan-400 uppercase font-bold tracking-wider">🎯 Session & Identity</div>
+                <div className="flex justify-between"><span className="text-slate-400">Session ID:</span> <span className="text-slate-300 truncate max-w-[140px]">{telemetry.sessionId}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">Turn ID:</span> <span className="text-cyan-400 font-bold">{telemetry.turnId}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">Request ID:</span> <span className="text-slate-400 truncate max-w-[140px]">{telemetry.requestId}</span></div>
                 <div className="flex justify-between"><span className="text-slate-400">Session Duration:</span> <span>{telemetry.sessionDuration}s</span></div>
               </div>
 
               <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
-                <div className="text-[11px] text-slate-500 uppercase font-bold tracking-wider">Audio & VAD Pipeline</div>
-                <div className="flex justify-between"><span className="text-slate-400">VAD Speech Active:</span> <span className={telemetry.vadActive ? "text-emerald-400 font-bold" : "text-slate-500"}>{telemetry.vadActive ? "DETECTED" : "SILENT"}</span></div>
-                <div className="flex justify-between"><span className="text-slate-400">Audio Level (RMS):</span> <span>{telemetry.audioLevel}/100</span></div>
-                <div className="flex justify-between"><span className="text-slate-400">STT Engine:</span> <span>{telemetry.sttEngine}</span></div>
-                <div className="flex justify-between"><span className="text-slate-400">TTS Engine:</span> <span>{telemetry.ttsEngine}</span></div>
+                <div className="text-[11px] text-slate-500 uppercase font-bold tracking-wider">⚡ State & Hardware</div>
+                <div className="flex justify-between"><span className="text-slate-400">State:</span> <span className="text-emerald-400 font-bold">{telemetry.state}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">Microphone:</span> <span className={telemetry.micStatus === 'ACTIVE' ? 'text-emerald-400 font-bold' : 'text-slate-500'}>{telemetry.micStatus}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">STT Engine:</span> <span className={telemetry.sttStatus === 'ACTIVE' ? 'text-emerald-400 font-bold' : 'text-slate-500'}>{telemetry.sttStatus}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">VAD (Audio RMS):</span> <span>{telemetry.vadStatus} ({Math.round(telemetry.audioLevel)}/100)</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">AI Status:</span> <span className={telemetry.aiStatus === 'PROCESSING' ? 'text-amber-400 font-bold' : 'text-slate-400'}>{telemetry.aiStatus}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">TTS Playback:</span> <span className={telemetry.ttsStatus === 'ACTIVE' ? 'text-cyan-400 font-bold' : 'text-slate-500'}>{telemetry.ttsStatus}</span></div>
                 <div className="flex justify-between"><span className="text-slate-400">Language:</span> <span>{telemetry.language}</span></div>
                 <div className="flex justify-between"><span className="text-slate-400">Speech Rate:</span> <span>{telemetry.rate}</span></div>
               </div>
@@ -357,16 +359,23 @@ export default function VoiceAssistantPage() {
                 <div className="text-[11px] text-cyan-400 uppercase font-bold tracking-wider">🧠 Conversation Intelligence</div>
                 <div className="flex justify-between"><span className="text-slate-400">Current Topic:</span> <span className="text-blue-400 font-semibold">{telemetry.currentTopic || 'General'}</span></div>
                 <div className="flex justify-between"><span className="text-slate-400">Stress Score:</span> <span className="text-amber-400 font-bold">{telemetry.stressScore ? Math.round(telemetry.stressScore) : 50}% ({telemetry.stressTrend || 'stable'})</span></div>
+                {telemetry.currentTranscript && (
+                  <div className="mt-1 p-2 bg-slate-900 border border-slate-800 text-slate-300 rounded-lg text-[11px]">
+                    <span className="text-slate-500 font-bold block mb-0.5">💬 Current Speech:</span>
+                    "{telemetry.currentTranscript}"
+                  </div>
+                )}
                 {telemetry.conversationSummary && (
-                  <div className="mt-2 p-2 bg-slate-900 border border-slate-800 text-slate-300 rounded-lg text-[11px] leading-relaxed">
-                    <span className="text-cyan-400 font-bold block mb-1">📝 Context Summary:</span>
+                  <div className="mt-1 p-2 bg-slate-900 border border-slate-800 text-slate-300 rounded-lg text-[11px] leading-relaxed">
+                    <span className="text-cyan-400 font-bold block mb-0.5">📝 Rolling Summary:</span>
                     {telemetry.conversationSummary}
                   </div>
                 )}
               </div>
 
               <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
-                <div className="text-[11px] text-slate-500 uppercase font-bold tracking-wider">Health & Resilience</div>
+                <div className="text-[11px] text-slate-500 uppercase font-bold tracking-wider">🛡️ Health & Telemetry</div>
+                <div className="flex justify-between"><span className="text-slate-400">Last Event:</span> <span className="text-slate-300 truncate max-w-[150px]">{telemetry.lastEvent}</span></div>
                 <div className="flex justify-between"><span className="text-slate-400">Recovery Count:</span> <span className="text-amber-400">{telemetry.recoveryCount}</span></div>
                 <div className="flex justify-between"><span className="text-slate-400">Last Command:</span> <span>{telemetry.lastCommand || 'none'}</span></div>
                 {telemetry.lastError && (
