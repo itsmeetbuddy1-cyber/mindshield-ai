@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, Square, Globe, Activity, Heart, ArrowRight, Play, Settings } from 'lucide-react';
+import { Mic, Square, Globe, Activity, Heart, ArrowRight, Play, Settings, Shield } from 'lucide-react';
 import VoiceOrb from '../components/VoiceOrb';
-import voiceController, { VoiceState, DebugTelemetry } from '../services/voiceController';
+import { voiceAgentEngine } from '../services/voice/VoiceAgentEngine';
+import { VoiceState, VoiceTelemetry, SpeechRate } from '../services/voice/types';
 
 const demoDialogues = [
   {
@@ -14,8 +15,8 @@ const demoDialogues = [
   {
     title: 'Exam Panic (English)',
     user: 'I am totally blanking out, I cannot remember anything I studied!',
-    lang: 'en-US',
-    ai: 'It\'s completely normal to feel overwhelmed right now. Your brain is in a stress response. Let\'s pause and try a quick grounding exercise. Name three things you can see around you right now.'
+    lang: 'en-IN',
+    ai: 'It is completely normal to feel overwhelmed right now. Your brain is in a stress response. Let us pause and try a quick grounding exercise. Name three things you can see around you right now.'
   },
   {
     title: 'Family Concern (Gujarati)',
@@ -25,151 +26,190 @@ const demoDialogues = [
   }
 ];
 
-const VoiceAssistantPage = () => {
-  const [voiceState, setVoiceState] = useState<VoiceState>('IDLE');
-  const [volumeLevel, setVolumeLevel] = useState(0);
+export default function VoiceAssistantPage() {
+  const [telemetry, setTelemetry] = useState<VoiceTelemetry | null>(null);
   const [transcript, setTranscript] = useState('');
   const [aiResponse, setAiResponse] = useState('');
-  const [selectedLang, setSelectedLang] = useState('auto');
-  const [stressLevel, setStressLevel] = useState(45);
+  const [showDevDrawer, setShowDevDrawer] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
-  const [showDebug, setShowDebug] = useState(false);
-  const [telemetry, setTelemetry] = useState<DebugTelemetry | null>(null);
+  const [selectedLang, setSelectedLang] = useState('en-IN');
+  const [stressLevel, setStressLevel] = useState(45);
 
   useEffect(() => {
-    voiceController.onStateChange = (state) => setVoiceState(state);
-    voiceController.onTranscript = (text) => setTranscript(text);
-    voiceController.onResponse = (text) => setAiResponse(text);
-    voiceController.onVolume = (vol) => setVolumeLevel(vol);
-    voiceController.onDebug = (tele) => setTelemetry(tele);
+    const cleanup1 = voiceAgentEngine.onTelemetry((t) => {
+      setTelemetry(t);
+      if (t.audioLevel > 20) {
+        setStressLevel(prev => Math.min(95, Math.max(20, prev + (t.audioLevel > 60 ? 1 : -0.5))));
+      }
+    });
+    const cleanup2 = voiceAgentEngine.onTranscript((text) => {
+      setTranscript(text);
+    });
 
     return () => {
-      voiceController.stop();
+      cleanup1();
+      cleanup2();
+      voiceAgentEngine.stopSession();
     };
   }, []);
 
   const handleStartStop = () => {
-    if (voiceState === 'LISTENING' || voiceState === 'SPEAKING' || voiceState === 'THINKING') {
-      voiceController.stop();
+    if (telemetry?.state === 'LISTENING' || telemetry?.state === 'USER_SPEAKING' || telemetry?.state === 'AI_SPEAKING' || telemetry?.state === 'PROCESSING') {
+      voiceAgentEngine.stopSession();
     } else {
       setTranscript('');
       setAiResponse('');
-      voiceController.start(selectedLang);
+      voiceAgentEngine.startSession();
     }
   };
 
   const handleInterrupt = () => {
-    voiceController.interrupt();
+    if (telemetry?.state === 'AI_SPEAKING') {
+      voiceAgentEngine.executeCommand('STOP' as any);
+    }
+  };
+
+  const handleLanguageChange = (lang: string) => {
+    setSelectedLang(lang);
+    if (lang === 'hi-IN') voiceAgentEngine.executeCommand('LANG_HINDI' as any);
+    else if (lang === 'gu-IN') voiceAgentEngine.executeCommand('LANG_GUJARATI' as any);
+    else voiceAgentEngine.executeCommand('LANG_ENGLISH' as any);
+  };
+
+  const handleRateChange = (rate: SpeechRate) => {
+    if (rate === 'slow') voiceAgentEngine.executeCommand('SPEAK_SLOWER' as any);
+    else if (rate === 'fast') voiceAgentEngine.executeCommand('SPEAK_FASTER' as any);
+    else voiceAgentEngine.executeCommand('SPEAK_NORMAL' as any);
   };
 
   const runDemo = (demo: typeof demoDialogues[0]) => {
-    if (voiceState !== 'IDLE' && voiceState !== 'STOPPED') {
-        voiceController.stop();
-    }
+    voiceAgentEngine.stopSession();
     setTranscript(demo.user);
     setAiResponse('');
     setStressLevel(65);
-    
+
     setTimeout(() => {
-        setAiResponse(demo.ai);
-        voiceController.selectedLang = demo.lang;
-        voiceController.speak(demo.ai);
-    }, 1000);
+      setAiResponse(demo.ai);
+      voiceAgentEngine.executeCommand(demo.lang === 'hi-IN' ? 'LANG_HINDI' as any : demo.lang === 'gu-IN' ? 'LANG_GUJARATI' as any : 'LANG_ENGLISH' as any);
+    }, 800);
   };
 
   const getOrbState = () => {
-    switch (voiceState) {
+    switch (telemetry?.state) {
       case 'LISTENING': return 'listening';
-      case 'THINKING': return 'thinking';
-      case 'SPEAKING': return 'speaking';
+      case 'USER_SPEAKING': return 'listening';
+      case 'PROCESSING': return 'thinking';
+      case 'AI_SPEAKING': return 'speaking';
       case 'ERROR': return 'error';
       default: return 'ready';
     }
   };
 
   const getStatusText = () => {
-    switch (voiceState) {
-      case 'LISTENING': return "🎙️ I'm listening... Speak naturally";
-      case 'THINKING': return "⏳ Thinking...";
-      case 'SPEAKING': return "🔊 Shield AI is speaking... (Tap or speak to interrupt)";
+    switch (telemetry?.state) {
+      case 'LISTENING': return "🎙️ Shield AI is listening... Speak naturally";
+      case 'USER_SPEAKING': return "🗣️ Listening to you...";
+      case 'PROCESSING': return "⏳ Processing conversation...";
+      case 'AI_SPEAKING': return "🔊 Shield AI is speaking... (Tap or speak to interrupt)";
+      case 'INTERRUPTED': return "⚡ Interrupted. Listening to you...";
       case 'ERROR': return "⚠️ Reconnecting microphone...";
-      default: return "🎙️ Tap the button to start continuous conversation";
+      default: return "🎙️ Tap to start continuous Alexa-like conversation";
     }
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 text-white rounded-2xl overflow-hidden relative">
+    <div className="flex flex-col h-full bg-slate-950 text-white rounded-2xl overflow-hidden relative border border-slate-800">
       {/* Header */}
-      <header className="flex justify-between items-center p-6 border-b border-slate-800 bg-slate-900/50 backdrop-blur-md">
-        <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-          Talk to Shield AI
-        </h1>
-        <div className="flex items-center gap-4">
+      <header className="flex justify-between items-center p-5 border-b border-slate-800 bg-slate-900/60 backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
+            <Shield className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+              Shield AI Voice Agent
+            </h1>
+            <p className="text-xs text-slate-400">Continuous Conversational Companion</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
           <button 
-            onClick={() => setShowDebug(!showDebug)}
-            className="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-full text-sm hover:bg-slate-700 transition-colors"
+            onClick={() => setShowDevDrawer(!showDevDrawer)}
+            className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-full text-xs font-mono text-slate-300 transition-colors border border-slate-700"
           >
-            <Settings className="w-4 h-4 text-slate-400" />
-            <span className="text-slate-300">🛠️ Dev Telemetry</span>
+            <Settings className="w-3.5 h-3.5 text-cyan-400" />
+            <span>🛠️ Dev Telemetry</span>
           </button>
-          <div className="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-full text-sm">
-            <Globe className="w-4 h-4 text-cyan-400" />
+
+          <div className="flex items-center gap-1.5 bg-slate-800 px-3 py-1.5 rounded-full text-xs border border-slate-700">
+            <Globe className="w-3.5 h-3.5 text-cyan-400" />
             <select 
-              className="bg-transparent border-none outline-none text-slate-200 cursor-pointer"
+              className="bg-transparent border-none outline-none text-slate-200 cursor-pointer text-xs"
               value={selectedLang}
-              onChange={(e) => setSelectedLang(e.target.value)}
+              onChange={(e) => handleLanguageChange(e.target.value)}
             >
-              <option value="auto">Auto-Detect</option>
-              <option value="en-US">English</option>
+              <option value="en-IN">English (India)</option>
               <option value="hi-IN">हिन्दी (Hindi)</option>
               <option value="gu-IN">ગુજરાતી (Gujarati)</option>
             </select>
           </div>
-          <div className="flex items-center gap-2 bg-emerald-500/10 text-emerald-400 px-3 py-1.5 rounded-full text-sm font-medium border border-emerald-500/20">
+
+          <div className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 px-3 py-1.5 rounded-full text-xs font-medium border border-emerald-500/20">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            Real-Time Indicator
+            Active VAD
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
+      {/* Main Content Area */}
       <main className="flex-1 flex flex-col items-center justify-center p-6 relative">
-        {/* Stress Telemetry */}
-        <div className="absolute top-6 right-6 bg-slate-800/80 backdrop-blur border border-slate-700 p-4 rounded-xl flex flex-col items-center gap-2 w-32 shadow-xl">
-          <Activity className={`w-6 h-6 ${stressLevel > 60 ? 'text-red-400' : stressLevel > 40 ? 'text-amber-400' : 'text-emerald-400'}`} />
-          <div className="text-xs text-slate-400 font-medium">Vocal Stress</div>
-          <div className="text-2xl font-bold">{Math.round(stressLevel)}%</div>
-          <div className="w-full bg-slate-700 h-1.5 rounded-full overflow-hidden mt-1">
+        {/* Stress Telemetry Badge */}
+        <div className="absolute top-6 right-6 bg-slate-900/90 backdrop-blur border border-slate-800 p-3 rounded-2xl flex flex-col items-center gap-1.5 w-32 shadow-xl">
+          <Activity className={`w-5 h-5 ${stressLevel > 65 ? 'text-red-400' : stressLevel > 45 ? 'text-amber-400' : 'text-emerald-400'}`} />
+          <div className="text-[11px] text-slate-400 font-medium">Vocal Stress</div>
+          <div className="text-xl font-bold">{Math.round(stressLevel)}%</div>
+          <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
             <div 
-              className={`h-full rounded-full transition-all duration-1000 ${stressLevel > 60 ? 'bg-red-400' : stressLevel > 40 ? 'bg-amber-400' : 'bg-emerald-400'}`}
+              className={`h-full rounded-full transition-all duration-700 ${stressLevel > 65 ? 'bg-red-400' : stressLevel > 45 ? 'bg-amber-400' : 'bg-emerald-400'}`}
               style={{ width: `${stressLevel}%` }}
             />
           </div>
         </div>
 
-        {/* Voice Orb */}
-        <div className="mb-12">
-          <VoiceOrb state={getOrbState() as any} audioLevel={volumeLevel} />
+        {/* Central Reactive Voice Orb */}
+        <div className="mb-8">
+          <VoiceOrb state={getOrbState() as any} audioLevel={telemetry?.audioLevel || 0} />
         </div>
 
-        {/* Status & Transcripts */}
-        <div className="w-full max-w-2xl text-center space-y-6">
-          <p className="text-lg text-slate-400 font-medium h-6">
-            {getStatusText()}
-          </p>
+        {/* Status Text & Dynamic Transcription */}
+        <div className="w-full max-w-2xl text-center space-y-4">
+          <div className="flex items-center justify-center gap-2">
+            <p className="text-base text-slate-300 font-medium">
+              {getStatusText()}
+            </p>
+            {telemetry && telemetry.turnCount > 0 && (
+              <span className="bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-xs px-2.5 py-0.5 rounded-full font-bold">
+                Turn #{telemetry.turnCount}
+              </span>
+            )}
+          </div>
 
           <AnimatePresence mode="popLayout">
             {transcript && (
               <motion.div 
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-2xl inline-block max-w-[80%] relative"
+                className="bg-blue-600/10 border border-blue-500/30 p-4 rounded-2xl inline-block max-w-[85%] backdrop-blur-md shadow-lg"
               >
-                <p className="text-blue-100 text-lg">{transcript}</p>
+                <div className="text-xs text-blue-400 font-medium mb-1 flex items-center justify-center gap-1">
+                  <span>🗣️ You said:</span>
+                </div>
+                <p className="text-blue-100 text-lg font-medium">{transcript}</p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -177,72 +217,98 @@ const VoiceAssistantPage = () => {
           <AnimatePresence mode="popLayout">
             {aiResponse && (
               <motion.div 
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-slate-800 border border-slate-700 p-4 rounded-2xl inline-block max-w-[90%] shadow-lg relative"
+                className="bg-slate-900 border border-slate-700 p-5 rounded-2xl inline-block max-w-[90%] shadow-xl text-left"
               >
-                {telemetry && telemetry.turnCount > 0 && (
-                  <div className="absolute -top-3 -right-3 bg-cyan-600 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
-                    Turn #{telemetry.turnCount}
-                  </div>
-                )}
-                <p className="text-slate-100 text-xl leading-relaxed">{aiResponse}</p>
+                <div className="text-xs text-cyan-400 font-medium mb-1.5 flex items-center gap-1">
+                  <span>🤖 Shield AI Response:</span>
+                </div>
+                <p className="text-slate-100 text-base leading-relaxed">{aiResponse}</p>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       </main>
 
-      {/* Controls */}
-      <div className="p-6 pb-8 flex flex-col items-center gap-6 bg-slate-900/80 backdrop-blur-xl border-t border-slate-800">
-        <div className="flex items-center justify-center gap-6">
+      {/* Control Deck */}
+      <div className="p-5 pb-6 flex flex-col items-center gap-4 bg-slate-900/90 backdrop-blur-xl border-t border-slate-800">
+        <div className="flex items-center justify-center gap-5">
+          {/* Main Action Button */}
           <button
             onClick={handleStartStop}
-            className={`p-6 rounded-full shadow-2xl transition-all transform hover:scale-105 active:scale-95 ${
-              (voiceState === 'LISTENING' || voiceState === 'SPEAKING' || voiceState === 'THINKING')
-                ? 'bg-red-500 shadow-red-500/50 hover:bg-red-400' 
-                : 'bg-cyan-600 shadow-cyan-500/50 hover:bg-cyan-500'
+            className={`p-6 rounded-full shadow-2xl transition-all transform hover:scale-105 active:scale-95 flex items-center justify-center ${
+              (telemetry?.state === 'LISTENING' || telemetry?.state === 'USER_SPEAKING' || telemetry?.state === 'AI_SPEAKING' || telemetry?.state === 'PROCESSING')
+                ? 'bg-red-500 shadow-red-500/40 hover:bg-red-600' 
+                : 'bg-gradient-to-r from-blue-600 to-cyan-500 shadow-cyan-500/30 hover:opacity-90'
             }`}
           >
-            {(voiceState === 'LISTENING' || voiceState === 'SPEAKING' || voiceState === 'THINKING') ? (
-              <Square className="w-10 h-10 text-white fill-current" />
+            {(telemetry?.state === 'LISTENING' || telemetry?.state === 'USER_SPEAKING' || telemetry?.state === 'AI_SPEAKING' || telemetry?.state === 'PROCESSING') ? (
+              <Square className="w-8 h-8 text-white fill-current" />
             ) : (
-              <Mic className="w-10 h-10 text-white" />
+              <Mic className="w-8 h-8 text-white" />
             )}
           </button>
 
-          {voiceState === 'SPEAKING' && (
-             <button
-                onClick={handleInterrupt}
-                className="bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/30 px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 transition-colors"
-             >
-                <Square className="w-4 h-4 fill-current" />
-                ⏹️ Stop Speaking
-             </button>
+          {/* Barge-in Stop Speaking Button */}
+          {telemetry?.state === 'AI_SPEAKING' && (
+            <button
+              onClick={handleInterrupt}
+              className="bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/40 px-4 py-2.5 rounded-full text-xs font-semibold flex items-center gap-2 transition-all shadow-lg animate-bounce"
+            >
+              <Square className="w-3.5 h-3.5 fill-current" />
+              <span>⏹️ Interrupt AI</span>
+            </button>
           )}
         </div>
 
-        <div className="flex items-center gap-4 mt-2">
-            <button
-               onClick={() => setShowSummary(true)}
-               className="text-slate-400 hover:text-cyan-400 text-sm font-medium transition-colors"
-            >
-               View Session Summary
-            </button>
+        {/* Quick Voice Command Chips */}
+        <div className="flex flex-wrap items-center justify-center gap-2 max-w-3xl">
+          <span className="text-[11px] text-slate-400 font-medium mr-1">Voice Commands:</span>
+          <button 
+            onClick={() => handleRateChange('slow')}
+            className="px-3 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-full text-xs text-slate-300 transition-colors"
+          >
+            🐢 "Speak Slower"
+          </button>
+          <button 
+            onClick={() => handleRateChange('normal')}
+            className="px-3 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-full text-xs text-slate-300 transition-colors"
+          >
+            🎯 "Normal Speed"
+          </button>
+          <button 
+            onClick={() => handleLanguageChange('hi-IN')}
+            className="px-3 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-full text-xs text-slate-300 transition-colors"
+          >
+            🇮🇳 "Hindi Mein Bolo"
+          </button>
+          <button 
+            onClick={() => handleLanguageChange('gu-IN')}
+            className="px-3 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-full text-xs text-slate-300 transition-colors"
+          >
+            🇮🇳 "Gujarati Ma Vaat Karo"
+          </button>
+          <button 
+            onClick={() => handleInterrupt()}
+            className="px-3 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-full text-xs text-amber-400 transition-colors"
+          >
+            🛑 "Stop"
+          </button>
         </div>
 
-        {/* Demo Scenarios */}
-        <div className="w-full max-w-3xl border-t border-slate-800 pt-6 mt-2">
-          <div className="flex items-center gap-2 mb-4 justify-center">
-            <Play className="w-4 h-4 text-cyan-400" />
-            <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Interactive Voice Demo (Offline)</h3>
+        {/* Offline SIH Demo Scenarios */}
+        <div className="w-full max-w-3xl border-t border-slate-800/80 pt-3 flex flex-col items-center">
+          <div className="flex items-center gap-1.5 mb-2">
+            <Play className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">SIH Presentation Dialogue Simulation</span>
           </div>
-          <div className="flex flex-wrap gap-3 justify-center">
+          <div className="flex flex-wrap gap-2 justify-center">
             {demoDialogues.map((demo, idx) => (
               <button
                 key={idx}
                 onClick={() => runDemo(demo)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm transition-colors flex items-center gap-2"
+                className="px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs text-slate-300 transition-colors flex items-center gap-1.5"
               >
                 <span>{demo.title}</span>
               </button>
@@ -251,82 +317,56 @@ const VoiceAssistantPage = () => {
         </div>
       </div>
 
-      {/* Developer Debug Panel */}
+      {/* Developer Telemetry Drawer */}
       <AnimatePresence>
-        {showDebug && telemetry && (
+        {showDevDrawer && telemetry && (
           <motion.div
-            initial={{ opacity: 0, x: 300 }}
+            initial={{ opacity: 0, x: 320 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 300 }}
-            className="absolute top-24 right-6 w-80 bg-slate-900/95 border border-slate-700 shadow-2xl p-4 rounded-xl z-50 backdrop-blur-xl"
+            exit={{ opacity: 0, x: 320 }}
+            className="absolute top-0 right-0 h-full w-84 bg-slate-900/95 border-l border-slate-700 shadow-2xl p-5 z-50 backdrop-blur-2xl overflow-y-auto"
           >
-            <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-2">
-              <h3 className="text-sm font-bold text-cyan-400">Developer Debug Panel</h3>
-              <button onClick={() => setShowDebug(false)} className="text-slate-500 hover:text-white">✕</button>
-            </div>
-            <div className="space-y-2 text-xs font-mono text-slate-300">
-              <div className="flex justify-between"><span className="text-slate-500">State Machine:</span> <span className="text-emerald-400">{telemetry.state}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Current Turn:</span> <span>{telemetry.turnCount}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Language:</span> <span>{telemetry.language}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">STT Engine Active:</span> <span>{telemetry.recognitionActive ? 'TRUE' : 'FALSE'}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">TTS Engine Active:</span> <span>{telemetry.ttsActive ? 'TRUE' : 'FALSE'}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Audio Context:</span> <span>ACTIVE</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Recovery Count:</span> <span>{telemetry.recoveryAttempts}</span></div>
-              {telemetry.lastError && (
-                <div className="mt-2 p-2 bg-red-500/10 border border-red-500/20 text-red-400 rounded">
-                  Last Error: {telemetry.lastError}
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Post-Session Summary Drawer */}
-      <AnimatePresence>
-        {showSummary && (
-          <motion.div
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', bounce: 0, duration: 0.4 }}
-            className="absolute bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-700 shadow-2xl p-6 rounded-t-3xl z-50"
-          >
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <h3 className="text-xl font-bold mb-1">Session Summary</h3>
-                <p className="text-slate-400 text-sm">Based on your recent conversation</p>
+            <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Settings className="w-4 h-4 text-cyan-400" />
+                <h3 className="text-sm font-bold text-white">Voice Agent Engine Telemetry</h3>
               </div>
-              <button onClick={() => setShowSummary(false)} className="text-slate-400 hover:text-white">
-                ✕
-              </button>
+              <button onClick={() => setShowDevDrawer(false)} className="text-slate-400 hover:text-white text-sm">✕</button>
             </div>
 
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              <div className="bg-slate-800 p-4 rounded-xl">
-                <div className="text-sm text-slate-400 mb-1">Detected Topic</div>
-                <div className="font-semibold text-blue-400">Academic Stress</div>
+            <div className="space-y-3 text-xs font-mono">
+              <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
+                <div className="text-[11px] text-slate-500 uppercase font-bold tracking-wider">State Machine</div>
+                <div className="flex justify-between"><span className="text-slate-400">Current State:</span> <span className="text-emerald-400 font-bold">{telemetry.state}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">Mode:</span> <span>{telemetry.mode}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">Turn Sequence:</span> <span className="text-cyan-400 font-bold">{telemetry.turnCount}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">Session Duration:</span> <span>{telemetry.sessionDuration}s</span></div>
               </div>
-              <div className="bg-slate-800 p-4 rounded-xl">
-                <div className="text-sm text-slate-400 mb-1">Total Turns</div>
-                <div className="font-semibold text-cyan-400">{telemetry?.turnCount || 0}</div>
+
+              <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
+                <div className="text-[11px] text-slate-500 uppercase font-bold tracking-wider">Audio & VAD Pipeline</div>
+                <div className="flex justify-between"><span className="text-slate-400">VAD Speech Active:</span> <span className={telemetry.vadActive ? "text-emerald-400 font-bold" : "text-slate-500"}>{telemetry.vadActive ? "DETECTED" : "SILENT"}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">Audio Level (RMS):</span> <span>{telemetry.audioLevel}/100</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">STT Engine:</span> <span>{telemetry.sttEngine}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">TTS Engine:</span> <span>{telemetry.ttsEngine}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">Language:</span> <span>{telemetry.language}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">Speech Rate:</span> <span>{telemetry.rate}</span></div>
               </div>
-              <div className="bg-slate-800 p-4 rounded-xl">
-                <div className="text-sm text-slate-400 mb-1">Stress Level</div>
-                <div className="font-semibold text-amber-400">{Math.round(stressLevel)}%</div>
+
+              <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
+                <div className="text-[11px] text-slate-500 uppercase font-bold tracking-wider">Health & Resilience</div>
+                <div className="flex justify-between"><span className="text-slate-400">Recovery Count:</span> <span className="text-amber-400">{telemetry.recoveryCount}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">Last Command:</span> <span>{telemetry.lastCommand || 'none'}</span></div>
+                {telemetry.lastError && (
+                  <div className="mt-2 p-2 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg">
+                    {telemetry.lastError}
+                  </div>
+                )}
               </div>
             </div>
-
-            <button className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-4 rounded-xl flex items-center justify-center gap-3 transition-colors">
-              <Heart className="w-5 h-5" />
-              Start 60s Breathing Reset
-              <ArrowRight className="w-5 h-5" />
-            </button>
           </motion.div>
         )}
       </AnimatePresence>
     </div>
   );
-};
-
-export default VoiceAssistantPage;
+}

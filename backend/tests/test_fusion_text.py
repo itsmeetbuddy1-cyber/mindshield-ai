@@ -105,4 +105,56 @@ def test_continuous_voice_ten_turns():
         assert len(data["response"]) > 0
         assert data["safety_level"] in ["LOW", "MODERATE", "HIGH"]
 
+def test_continuous_voice_twenty_turns_multilingual_loop():
+    from fastapi.testclient import TestClient
+    from app.main import app
+    client = TestClient(app)
+    
+    session_id = "test_alexa_voice_session_20turn"
+    
+    conversation_turns = [
+        # Turn 1-5 (Hindi Academic Pressure)
+        ("Mujhe exams ka bohot zyada tension ho raha hai.", "hi"),
+        ("Concentration bilkul nahi ban raha hai.", "hi"),
+        ("Aisa lagta hai sab bhool jaunga.", "hi"),
+        ("Main padhai kaise schedule karun?", "hi"),
+        ("Chalo pehle breathing exercise try karte hain.", "hi"),
+        
+        # Turn 6-10 (English Sleep & Routine)
+        ("I also struggle to fall asleep when stressed.", "en"),
+        ("My mind keeps racing with thoughts at midnight.", "en"),
+        ("What is a good 10-minute wind down routine?", "en"),
+        ("Should I avoid screens before sleeping?", "en"),
+        ("That sounds doable, I will try it tonight.", "en"),
+        
+        # Turn 11-15 (Gujarati Family & Balance)
+        ("મારે ઘર અને ભણતર બંનેનું સંતુલન રાખવું છે.", "gu"),
+        ("ક્યારેક ઘરમાં પણ થોડો તણાવ રહે છે.", "gu"),
+        ("મારે મારી જાત માટે સમય કેવી રીતે કાઢવો?", "gu"),
+        ("તમારી સલાહ ખૂબ મદદરૂપ છે.", "gu"),
+        ("હું હવે થોડો હળવો અનુભવું છું.", "gu"),
+        
+        # Turn 16-20 (English & Hindi Wrap-up & Followups)
+        ("Can you summarize our focus areas for this week?", "en"),
+        ("How often should I do the grounding exercises?", "en"),
+        ("Bahut accha laga baat karke.", "hi"),
+        ("Ab main confident feel kar raha hoon.", "hi"),
+        ("Thank you Shield AI, goodbye!", "en")
+    ]
+    
+    assert len(conversation_turns) == 20
+    
+    for idx, (prompt, lang) in enumerate(conversation_turns, 1):
+        res = client.post("/api/analyze-message", json={
+            "message": prompt,
+            "language": lang,
+            "session_id": session_id
+        })
+        assert res.status_code == 200, f"Turn {idx} failed"
+        data = res.json()
+        assert "response" in data
+        assert len(data["response"]) > 5, f"Turn {idx} response empty"
+        print(f"[PASS] Turn #{idx:02d} ({lang.upper()}): '{prompt[:30]}...' -> AI: '{data['response'][:45]}...'")
+
+
 

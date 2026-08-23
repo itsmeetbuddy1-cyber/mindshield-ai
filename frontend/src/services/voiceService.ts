@@ -1,3 +1,2 @@
-import voiceController from './voiceController';
-export { voiceController };
-export default voiceController;
+import { voiceAgentEngine } from './voice/VoiceAgentEngine';
+export default voiceAgentEngine;
