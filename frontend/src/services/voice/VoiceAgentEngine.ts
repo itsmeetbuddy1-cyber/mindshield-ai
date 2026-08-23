@@ -28,6 +28,10 @@ class VoiceAgentEngine {
   private recoveryCount = 0;
   private vadActive = false;
   private currentAudioLevel = 0;
+  private currentTopic: string = "General";
+  private conversationSummary: string = "";
+  private stressScore: number = 45;
+  private stressTrend: string = "stable";
 
   constructor() {
     this.stt = new BrowserSTTProvider();
@@ -166,6 +170,10 @@ class VoiceAgentEngine {
           session_id: this.sessionId
         });
         aiText = res.data?.response || res.data?.reply || '';
+        if (res.data?.current_topic) this.currentTopic = res.data.current_topic;
+        if (res.data?.conversation_summary) this.conversationSummary = res.data.conversation_summary;
+        if (res.data?.stress_score !== undefined) this.stressScore = res.data.stress_score;
+        if (res.data?.stress_trend) this.stressTrend = res.data.stress_trend;
       } catch (apiErr) {
         console.warn('Real AI API failed, using fallback:', apiErr);
       }
@@ -283,7 +291,11 @@ class VoiceAgentEngine {
       lastCommand: this.lastCommand,
       lastError: this.lastError,
       recoveryCount: this.recoveryCount,
-      sessionDuration: this.sessionStartTime ? Math.floor((Date.now() - this.sessionStartTime) / 1000) : 0
+      sessionDuration: this.sessionStartTime ? Math.floor((Date.now() - this.sessionStartTime) / 1000) : 0,
+      currentTopic: this.currentTopic,
+      conversationSummary: this.conversationSummary,
+      stressScore: this.stressScore,
+      stressTrend: this.stressTrend
     };
     this.telemetryListeners.forEach(l => l(t));
   }

@@ -1,5 +1,5 @@
 import random
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 from app.core.config import settings
 
 # Trigger-specific response pools
@@ -301,87 +301,32 @@ def is_followup(message: str) -> bool:
     msg = message.lower().strip()
     return any(msg.startswith(kw) or msg == kw for kw in FOLLOWUP_KEYWORDS) or len(msg.split()) <= 3
 
+from app.services.conversation_engine import conversation_engine
+
 class MockAIService:
     def __init__(self):
-        self._used_responses: Dict[str, List[int]] = {}  # track used responses per category
+        self._used_responses: Dict[str, List[int]] = {}
         self._last_trigger: str = "general"
         self._last_category: str = "general"
     
-    def _get_unique_response(self, responses: List[str], category: str) -> str:
-        """Get a response that hasn't been used yet in this session."""
-        used = self._used_responses.get(category, [])
-        available = [i for i in range(len(responses)) if i not in used]
-        if not available:
-            # Reset if all used
-            self._used_responses[category] = []
-            available = list(range(len(responses)))
-        idx = random.choice(available)
-        self._used_responses.setdefault(category, []).append(idx)
-        return responses[idx]
-    
-    def analyze_message(self, message: str, context: Optional[List[Dict]] = None, language: str = "en") -> str:
-        msg_lower = message.lower()
-        lang = language if language in ["en", "hi", "gu"] else "en"
-        
-        # Check for follow-up
-        if context and is_followup(message):
-            # Continue with the previous topic
-            trigger = self._last_trigger
-            if trigger in TRIGGER_RESPONSES and lang in TRIGGER_RESPONSES[trigger]:
-                category_key = f"trigger_{trigger}_{lang}"
-                return self._get_unique_response(TRIGGER_RESPONSES[trigger][lang], category_key)
-            category_key = f"emotion_{self._last_category}_{lang}"
-            if self._last_category in EMOTIONAL_RESPONSES and lang in EMOTIONAL_RESPONSES[self._last_category]:
-                return self._get_unique_response(EMOTIONAL_RESPONSES[self._last_category][lang], category_key)
-        
-        # Detect trigger category first
-        trigger = detect_trigger(message)
-        if trigger != "general" and trigger in TRIGGER_RESPONSES:
-            self._last_trigger = trigger
-            self._last_category = trigger
-            category_key = f"trigger_{trigger}_{lang}"
-            return self._get_unique_response(TRIGGER_RESPONSES[trigger][lang], category_key)
-        
-        # Detect emotional state
-        emotional_map = {
-            "overwhelmed": ["overwhelmed", "too much", "cannot handle", "burnout", "exhausted", "can't focus", "bahut zyada", "sambhal nahi"],
-            "anxious": ["anxious", "anxiety", "worry", "nervous", "panic", "heart racing", "stressed", "stress", "chinta", "ghabrahat", "tanav"],
-            "calm_down": ["help me calm down", "guide my breathing", "calm down", "breathe", "shant", "saans"],
-            "stress_status": ["show my stress", "my stress", "how am i doing", "mera stress", "kaisa chal raha"],
-            "sad": ["sad", "down", "crying", "unhappy", "depressed", "miserable", "udaas", "dukhi", "ro raha"],
-            "angry": ["angry", "mad", "frustrated", "hate this", "furious", "annoyed", "gussa", "naraz"],
-            "lonely": ["lonely", "alone", "nobody understands", "isolated", "akela", "tanha"]
-        }
-        
-        for emotion, keywords in emotional_map.items():
-            if any(kw in msg_lower for kw in keywords):
-                self._last_category = emotion
-                self._last_trigger = "general"
-                category_key = f"emotion_{emotion}_{lang}"
-                if lang in EMOTIONAL_RESPONSES[emotion]:
-                    return self._get_unique_response(EMOTIONAL_RESPONSES[emotion][lang], category_key)
-        
-        # Default empathetic response
-        defaults = {
-            "en": "Thank you for sharing that with me. I'm listening closely. How is this affecting your focus and energy today? We can explore coping tools or talk more about it.",
-            "hi": "यह बताने के लिए धन्यवाद। मैं ध्यान से सुन रहा/रही हूँ। यह आज आपकी एकाग्रता और ऊर्जा को कैसे प्रभावित कर रहा है?",
-            "gu": "આ જણાવવા બદલ આભાર. હું ધ્યાનથી સાંભળી રહ્યો/રહી છું. આ આજે તમારી એકાગ્રતા અને ઊર્જાને કેવી રીતે અસર કરી રહ્યું છે?"
-        }
-        self._last_category = "general"
-        return defaults.get(lang, defaults["en"])
+    def analyze_message(self, message: str, context: Optional[List[Dict]] = None, language: str = "en", session_id: Optional[str] = None) -> Dict[str, Any]:
+        return conversation_engine.process_message(message, session_id, language)
 
 
 class RealAIService:
-    def analyze_message(self, message: str, context: Optional[List[Dict]] = None, language: str = "en") -> str:
+    def analyze_message(self, message: str, context: Optional[List[Dict]] = None, language: str = "en", session_id: Optional[str] = None) -> Dict[str, Any]:
         if not settings.AI_API_KEY:
-            return MockAIService().analyze_message(message, context, language)
+            return MockAIService().analyze_message(message, context, language, session_id)
         try:
-            return f"AI Analysis: {MockAIService().analyze_message(message, context, language)}"
+            res = MockAIService().analyze_message(message, context, language, session_id)
+            res["response"] = f"AI Analysis: {res['response']}"
+            return res
         except Exception:
-            return MockAIService().analyze_message(message, context, language)
+            return MockAIService().analyze_message(message, context, language, session_id)
 
 
 def get_ai_service():
     if settings.AI_MODE == "real" and settings.AI_API_KEY:
         return RealAIService()
     return MockAIService()
+

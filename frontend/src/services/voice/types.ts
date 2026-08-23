@@ -35,4 +35,8 @@ export interface VoiceTelemetry {
   lastError: string | null;
   recoveryCount: number;
   sessionDuration: number;
+  currentTopic?: string;
+  conversationSummary?: string;
+  stressScore?: number;
+  stressTrend?: string;
 }

@@ -154,7 +154,57 @@ def test_continuous_voice_twenty_turns_multilingual_loop():
         data = res.json()
         assert "response" in data
         assert len(data["response"]) > 5, f"Turn {idx} response empty"
-        print(f"[PASS] Turn #{idx:02d} ({lang.upper()}): '{prompt[:30]}...' -> AI: '{data['response'][:45]}...'")
+
+def test_exact_15_turn_two_way_conversation():
+    from fastapi.testclient import TestClient
+    from app.main import app
+    client = TestClient(app)
+    
+    session_id = "test_two_way_conversation_15turn"
+    
+    script = [
+        ("I am feeling stressed.", "en"),
+        ("My exams are coming.", "en"),
+        ("Mostly I can't concentrate.", "en"),
+        ("I keep checking my phone.", "en"),
+        ("4-5 hours.", "en"),
+        ("Mathematics and Physics.", "en"),
+        ("My parents also expect very high marks.", "en"),
+        ("Both.", "en"),
+        ("What should I do when I can't concentrate?", "en"),
+        ("I also struggle to sleep at night.", "en"),
+        ("My mind keeps racing before bed.", "en"),
+        ("Could you guide a quick breathing exercise?", "en"),
+        ("Thank you, I feel much calmer now.", "en"),
+        ("I feel ready to start my 25-minute study block.", "en"),
+        ("Goodbye Shield AI!", "en")
+    ]
+    
+    assert len(script) == 15
+    previous_responses = set()
+    
+    for turn, (msg, lang) in enumerate(script, 1):
+        res = client.post("/api/analyze-message", json={
+            "message": msg,
+            "language": lang,
+            "session_id": session_id
+        })
+        assert res.status_code == 200, f"Turn {turn} failed"
+        data = res.json()
+        
+        # Verify rich metadata
+        assert "response" in data
+        assert len(data["response"]) > 10
+        assert data["response"] not in previous_responses, f"Duplicate response detected on turn {turn}"
+        previous_responses.add(data["response"])
+        
+        assert data["turn_id"] == turn
+        assert data["current_topic"] is not None
+        assert data["conversation_summary"] is not None
+        assert data["stress_score"] is not None
+        
+        print(f"\n[TURN {turn:02d}] User: '{msg}'\nAI: '{data['response']}'\nTopic: {data['current_topic']} | Summary: {data['conversation_summary']} | Stress: {data['stress_score']} ({data['stress_trend']})")
+
 
 
 

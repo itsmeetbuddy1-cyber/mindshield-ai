@@ -138,6 +138,8 @@ def api_analyze_message(request: schemas.MessageRequest, user: models.User = Dep
     uid = user.id if user else request.user_id
     lang = request.language or (user.preferred_language if user else "en")
     
+    session_key = request.session_id or f"user_{uid}"
+    
     user_msg = models.Conversation(user_id=uid, role="user", content=request.message, safety_level="UNKNOWN")
     db.add(user_msg)
     
@@ -150,11 +152,18 @@ def api_analyze_message(request: schemas.MessageRequest, user: models.User = Dep
     context = [{"role": m.role, "content": m.content} for m in reversed(recent_msgs)]
     
     if risk_level == "HIGH":
-        ai_response = support_msg
+        ai_response_dict = {
+            "response": support_msg,
+            "turn_id": None,
+            "current_topic": None,
+            "conversation_summary": None,
+            "stress_trend": None,
+            "stress_score": None
+        }
     else:
-        ai_response = ai_service.analyze_message(request.message, context=context, language=lang)
+        ai_response_dict = ai_service.analyze_message(request.message, context=context, language=lang, session_id=session_key)
         
-    ai_msg = models.Conversation(user_id=uid, role="ai", content=ai_response, safety_level=risk_level)
+    ai_msg = models.Conversation(user_id=uid, role="ai", content=ai_response_dict["response"], safety_level=risk_level)
     db.add(ai_msg)
     
     if risk_level != "LOW":
@@ -162,7 +171,7 @@ def api_analyze_message(request: schemas.MessageRequest, user: models.User = Dep
             user_id=uid,
             risk_level=risk_level,
             trigger_text=request.message,
-            response_given=ai_response
+            response_given=ai_response_dict["response"]
         )
         db.add(safety_event)
         
@@ -174,7 +183,16 @@ def api_analyze_message(request: schemas.MessageRequest, user: models.User = Dep
     elif risk_level == "HIGH":
         actions.append("show_resources")
         
-    return schemas.MessageResponse(response=ai_response, safety_level=risk_level, suggested_actions=actions)
+    return schemas.MessageResponse(
+        response=ai_response_dict["response"],
+        safety_level=risk_level,
+        suggested_actions=actions,
+        turn_id=ai_response_dict.get("turn_id"),
+        current_topic=ai_response_dict.get("current_topic"),
+        conversation_summary=ai_response_dict.get("conversation_summary"),
+        stress_trend=ai_response_dict.get("stress_trend"),
+        stress_score=ai_response_dict.get("stress_score")
+    )
 
 @router.post("/analyze-multimodal")
 def analyze_multimodal(payload: Dict[str, Any]):

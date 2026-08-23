@@ -67,6 +67,11 @@ class MessageResponse(BaseSchema):
     response: str
     safety_level: str
     suggested_actions: List[str] = []
+    turn_id: Optional[int] = None
+    current_topic: Optional[str] = None
+    conversation_summary: Optional[str] = None
+    stress_trend: Optional[str] = None
+    stress_score: Optional[float] = None
 
 class SafetyCheckRequest(BaseModel):
     message: str

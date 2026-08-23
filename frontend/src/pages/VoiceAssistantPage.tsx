@@ -354,6 +354,18 @@ export default function VoiceAssistantPage() {
               </div>
 
               <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
+                <div className="text-[11px] text-cyan-400 uppercase font-bold tracking-wider">🧠 Conversation Intelligence</div>
+                <div className="flex justify-between"><span className="text-slate-400">Current Topic:</span> <span className="text-blue-400 font-semibold">{telemetry.currentTopic || 'General'}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">Stress Score:</span> <span className="text-amber-400 font-bold">{telemetry.stressScore ? Math.round(telemetry.stressScore) : 50}% ({telemetry.stressTrend || 'stable'})</span></div>
+                {telemetry.conversationSummary && (
+                  <div className="mt-2 p-2 bg-slate-900 border border-slate-800 text-slate-300 rounded-lg text-[11px] leading-relaxed">
+                    <span className="text-cyan-400 font-bold block mb-1">📝 Context Summary:</span>
+                    {telemetry.conversationSummary}
+                  </div>
+                )}
+              </div>
+
+              <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
                 <div className="text-[11px] text-slate-500 uppercase font-bold tracking-wider">Health & Resilience</div>
                 <div className="flex justify-between"><span className="text-slate-400">Recovery Count:</span> <span className="text-amber-400">{telemetry.recoveryCount}</span></div>
                 <div className="flex justify-between"><span className="text-slate-400">Last Command:</span> <span>{telemetry.lastCommand || 'none'}</span></div>
