@@ -1,0 +1,30 @@
+# Node dependencies
+node_modules/
+frontend/node_modules/
+
+# Build artifacts
+frontend/dist/
+
+# Python cache & virtualenv
+__pycache__/
+*.py[cod]
+*$py.class
+backend/__pycache__/
+backend/app/__pycache__/
+backend/app/*/__pycache__/
+.venv/
+venv/
+ENV/
+
+# Database & local state
+*.db
+backend/mindshield.db
+
+# Executables & tunnels
+cloudflared.exe
+*.exe
+
+# Environment & local secrets
+.env
+.DS_Store
+Thumbs.db
