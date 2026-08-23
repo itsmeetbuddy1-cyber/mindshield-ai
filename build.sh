@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Exit immediately if a command exits with a non-zero status
+# Exit on error
 set -o errexit
 
 echo "==> Building React Frontend..."
@@ -8,9 +8,10 @@ npm install
 npm run build
 cd ..
 
-echo "==> Installing Python Backend Dependencies..."
-cd backend
-pip install -r requirements.txt
-cd ..
+echo "==> Upgrading pip..."
+pip install --upgrade pip
 
-echo "==> Build Complete!"
+echo "==> Installing Python Backend Dependencies..."
+pip install --prefer-binary -r backend/requirements.txt
+
+echo "==> Build Complete Successfully!"
