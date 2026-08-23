@@ -50,3 +50,59 @@ def test_multilingual_text_analysis():
     gujarati_res = analyze_text_stress("pariksha mate khub chinta thay chhe mane")
     assert gujarati_res["text_stress_score"] >= 50.0
 
+def test_continuous_voice_five_turn_conversation():
+    from fastapi.testclient import TestClient
+    from app.main import app
+    client = TestClient(app)
+    
+    session_id = "test_voice_session_5turn"
+    turns = [
+        ("Mujhe exams ka stress ho raha hai.", "hi"),
+        ("Concentration nahi ho raha.", "hi"),
+        ("Main kya kar sakta hoon?", "hi"),
+        ("Breathing exercise karwao.", "hi"),
+        ("Ab thoda better lag raha hai.", "hi")
+    ]
+    
+    for idx, (user_text, lang) in enumerate(turns, 1):
+        res = client.post("/api/analyze-message", json={
+            "message": user_text,
+            "language": lang,
+            "session_id": session_id
+        })
+        assert res.status_code == 200, f"Turn {idx} failed"
+        data = res.json()
+        assert "response" in data
+        assert len(data["response"]) > 10, f"Turn {idx} response too short"
+
+def test_continuous_voice_ten_turns():
+    from fastapi.testclient import TestClient
+    from app.main import app
+    client = TestClient(app)
+    
+    session_id = "test_voice_session_10turn"
+    queries = [
+        "I am feeling very anxious about deadlines",
+        "Yes, tell me more about how to manage this",
+        "What should I do first?",
+        "I also have trouble sleeping at night",
+        "My thoughts keep racing before bed",
+        "Could you suggest a quick routine?",
+        "Thanks, what about relationships stress?",
+        "Sometimes communication gets hard",
+        "I appreciate the guidance",
+        "I am feeling much calmer now"
+    ]
+    
+    for idx, query in enumerate(queries, 1):
+        res = client.post("/api/analyze-message", json={
+            "message": query,
+            "language": "en",
+            "session_id": session_id
+        })
+        assert res.status_code == 200, f"Turn {idx} failed: {res.text}"
+        data = res.json()
+        assert len(data["response"]) > 0
+        assert data["safety_level"] in ["LOW", "MODERATE", "HIGH"]
+
+

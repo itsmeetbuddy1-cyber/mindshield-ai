@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, Square, Globe, Activity, Heart, ArrowRight, Play } from 'lucide-react';
+import { Mic, Square, Globe, Activity, Heart, ArrowRight, Play, Settings } from 'lucide-react';
 import VoiceOrb from '../components/VoiceOrb';
-import { voiceService } from '../services/voiceService';
-
-type VoiceState = 'ready' | 'listening' | 'thinking' | 'speaking' | 'error';
+import voiceController, { VoiceState, DebugTelemetry } from '../services/voiceController';
 
 const demoDialogues = [
   {
@@ -28,137 +26,75 @@ const demoDialogues = [
 ];
 
 const VoiceAssistantPage = () => {
-  const [voiceState, setVoiceState] = useState<VoiceState>('ready');
+  const [voiceState, setVoiceState] = useState<VoiceState>('IDLE');
   const [volumeLevel, setVolumeLevel] = useState(0);
   const [transcript, setTranscript] = useState('');
   const [aiResponse, setAiResponse] = useState('');
-  const [isMuted, setIsMuted] = useState(false);
   const [selectedLang, setSelectedLang] = useState('auto');
   const [stressLevel, setStressLevel] = useState(45);
   const [showSummary, setShowSummary] = useState(false);
-  
-  const recognitionRef = useRef<{ start: () => void, stop: () => void, isSupported: boolean } | null>(null);
-  const speechRef = useRef<{ speak: () => void, stop: () => void } | null>(null);
+  const [showDebug, setShowDebug] = useState(false);
+  const [telemetry, setTelemetry] = useState<DebugTelemetry | null>(null);
 
-  // Simulated audio volume for UI
   useEffect(() => {
-    if (voiceState === 'listening' || voiceState === 'speaking') {
-      const interval = setInterval(() => {
-        setVolumeLevel(Math.random() * 100);
-      }, 100);
-      return () => clearInterval(interval);
-    } else {
-      setVolumeLevel(0);
-    }
-  }, [voiceState]);
+    voiceController.onStateChange = (state) => setVoiceState(state);
+    voiceController.onTranscript = (text) => setTranscript(text);
+    voiceController.onResponse = (text) => setAiResponse(text);
+    voiceController.onVolume = (vol) => setVolumeLevel(vol);
+    voiceController.onDebug = (tele) => setTelemetry(tele);
 
-  const handleStartListening = () => {
-    setVoiceState('listening');
-    setTranscript('');
-    setAiResponse('');
-    
-    recognitionRef.current = voiceService.speechToText({
-      language: selectedLang === 'auto' ? undefined : selectedLang,
-      onResult: (text, isFinal) => {
-        setTranscript(text);
-        if (isFinal) {
-          handleStopListening(text);
-        }
-      },
-      onError: (err) => {
-        console.error('Speech recognition error:', err);
-        setVoiceState('error');
-        setTimeout(() => setVoiceState('ready'), 3000);
-      }
-    });
+    return () => {
+      voiceController.stop();
+    };
+  }, []);
 
-    if (recognitionRef.current.isSupported) {
-      recognitionRef.current.start();
+  const handleStartStop = () => {
+    if (voiceState === 'LISTENING' || voiceState === 'SPEAKING' || voiceState === 'THINKING') {
+      voiceController.stop();
     } else {
-      // Fallback if not supported
-      setTranscript('(Speech recognition not supported in this browser)');
-      setTimeout(() => setVoiceState('ready'), 3000);
+      setTranscript('');
+      setAiResponse('');
+      voiceController.start(selectedLang);
     }
   };
 
-  const handleStopListening = (finalText: string = transcript) => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-    }
-    if (!finalText) {
-      setVoiceState('ready');
-      return;
-    }
-    
-    setVoiceState('thinking');
-    
-    // Simulate AI delay and response
-    setTimeout(() => {
-      const lang = selectedLang === 'auto' ? voiceService.detectLanguage(finalText) : selectedLang.split('-')[0];
-      
-      let response = "I hear you. Let's work through this together.";
-      let speechLang = 'en-US';
-
-      if (lang === 'hi') {
-        response = "Main samajhta hoon. Chaliye is baare mein baat karte hain.";
-        speechLang = 'hi-IN';
-      } else if (lang === 'gu') {
-        response = "હું સમજું છું. ચાલો આપણે આ વિશે વાત કરીએ.";
-        speechLang = 'gu-IN';
-      }
-
-      setAiResponse(response);
-      setVoiceState('speaking');
-      
-      // Update simulated stress level
-      setStressLevel(prev => Math.max(20, prev + (Math.random() * 20 - 5)));
-
-      if (!isMuted) {
-        speechRef.current = voiceService.textToSpeech(response, speechLang, () => {
-          setVoiceState('ready');
-          setShowSummary(true);
-        });
-        speechRef.current.speak();
-      } else {
-        setTimeout(() => {
-          setVoiceState('ready');
-          setShowSummary(true);
-        }, 3000);
-      }
-    }, 1500);
-  };
-
-  const stopAiSpeaking = () => {
-    if (speechRef.current) {
-      speechRef.current.stop();
-    }
-    setVoiceState('ready');
-    setShowSummary(true);
+  const handleInterrupt = () => {
+    voiceController.interrupt();
   };
 
   const runDemo = (demo: typeof demoDialogues[0]) => {
-    setVoiceState('listening');
+    if (voiceState !== 'IDLE' && voiceState !== 'STOPPED') {
+        voiceController.stop();
+    }
     setTranscript(demo.user);
+    setAiResponse('');
+    setStressLevel(65);
+    
     setTimeout(() => {
-      setVoiceState('thinking');
-      setTimeout(() => {
         setAiResponse(demo.ai);
-        setVoiceState('speaking');
-        setStressLevel(65); // High stress for demo
-        if (!isMuted) {
-          speechRef.current = voiceService.textToSpeech(demo.ai, demo.lang, () => {
-            setVoiceState('ready');
-            setShowSummary(true);
-          });
-          speechRef.current.speak();
-        } else {
-          setTimeout(() => {
-            setVoiceState('ready');
-            setShowSummary(true);
-          }, 4000);
-        }
-      }, 1500);
-    }, 2000);
+        voiceController.selectedLang = demo.lang;
+        voiceController.speak(demo.ai);
+    }, 1000);
+  };
+
+  const getOrbState = () => {
+    switch (voiceState) {
+      case 'LISTENING': return 'listening';
+      case 'THINKING': return 'thinking';
+      case 'SPEAKING': return 'speaking';
+      case 'ERROR': return 'error';
+      default: return 'ready';
+    }
+  };
+
+  const getStatusText = () => {
+    switch (voiceState) {
+      case 'LISTENING': return "🎙️ I'm listening... Speak naturally";
+      case 'THINKING': return "⏳ Thinking...";
+      case 'SPEAKING': return "🔊 Shield AI is speaking... (Tap or speak to interrupt)";
+      case 'ERROR': return "⚠️ Reconnecting microphone...";
+      default: return "🎙️ Tap the button to start continuous conversation";
+    }
   };
 
   return (
@@ -169,6 +105,13 @@ const VoiceAssistantPage = () => {
           Talk to Shield AI
         </h1>
         <div className="flex items-center gap-4">
+          <button 
+            onClick={() => setShowDebug(!showDebug)}
+            className="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-full text-sm hover:bg-slate-700 transition-colors"
+          >
+            <Settings className="w-4 h-4 text-slate-400" />
+            <span className="text-slate-300">🛠️ Dev Telemetry</span>
+          </button>
           <div className="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-full text-sm">
             <Globe className="w-4 h-4 text-cyan-400" />
             <select 
@@ -187,7 +130,7 @@ const VoiceAssistantPage = () => {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            Real-Time Mode
+            Real-Time Indicator
           </div>
         </div>
       </header>
@@ -209,16 +152,13 @@ const VoiceAssistantPage = () => {
 
         {/* Voice Orb */}
         <div className="mb-12">
-          <VoiceOrb state={voiceState} audioLevel={volumeLevel} />
+          <VoiceOrb state={getOrbState() as any} audioLevel={volumeLevel} />
         </div>
 
         {/* Status & Transcripts */}
         <div className="w-full max-w-2xl text-center space-y-6">
           <p className="text-lg text-slate-400 font-medium h-6">
-            {voiceState === 'ready' && "Tap the microphone to speak"}
-            {voiceState === 'listening' && "I'm listening..."}
-            {voiceState === 'thinking' && "Analyzing..."}
-            {voiceState === 'speaking' && "Shield AI is speaking..."}
+            {getStatusText()}
           </p>
 
           <AnimatePresence mode="popLayout">
@@ -227,7 +167,7 @@ const VoiceAssistantPage = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-2xl inline-block max-w-[80%]"
+                className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-2xl inline-block max-w-[80%] relative"
               >
                 <p className="text-blue-100 text-lg">{transcript}</p>
               </motion.div>
@@ -235,12 +175,17 @@ const VoiceAssistantPage = () => {
           </AnimatePresence>
 
           <AnimatePresence mode="popLayout">
-            {aiResponse && (voiceState === 'speaking' || voiceState === 'ready') && (
+            {aiResponse && (
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-slate-800 border border-slate-700 p-4 rounded-2xl inline-block max-w-[90%] shadow-lg"
+                className="bg-slate-800 border border-slate-700 p-4 rounded-2xl inline-block max-w-[90%] shadow-lg relative"
               >
+                {telemetry && telemetry.turnCount > 0 && (
+                  <div className="absolute -top-3 -right-3 bg-cyan-600 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
+                    Turn #{telemetry.turnCount}
+                  </div>
+                )}
                 <p className="text-slate-100 text-xl leading-relaxed">{aiResponse}</p>
               </motion.div>
             )}
@@ -251,53 +196,53 @@ const VoiceAssistantPage = () => {
       {/* Controls */}
       <div className="p-6 pb-8 flex flex-col items-center gap-6 bg-slate-900/80 backdrop-blur-xl border-t border-slate-800">
         <div className="flex items-center justify-center gap-6">
-          <button 
-            onClick={() => setIsMuted(!isMuted)}
-            className={`p-4 rounded-full transition-all ${isMuted ? 'bg-red-500/20 text-red-400' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+          <button
+            onClick={handleStartStop}
+            className={`p-6 rounded-full shadow-2xl transition-all transform hover:scale-105 active:scale-95 ${
+              (voiceState === 'LISTENING' || voiceState === 'SPEAKING' || voiceState === 'THINKING')
+                ? 'bg-red-500 shadow-red-500/50 hover:bg-red-400' 
+                : 'bg-cyan-600 shadow-cyan-500/50 hover:bg-cyan-500'
+            }`}
           >
-            {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+            {(voiceState === 'LISTENING' || voiceState === 'SPEAKING' || voiceState === 'THINKING') ? (
+              <Square className="w-10 h-10 text-white fill-current" />
+            ) : (
+              <Mic className="w-10 h-10 text-white" />
+            )}
           </button>
 
-          {voiceState !== 'speaking' ? (
-            <button
-              onClick={voiceState === 'listening' ? () => handleStopListening() : handleStartListening}
-              className={`p-6 rounded-full shadow-2xl transition-all transform hover:scale-105 active:scale-95 ${
-                voiceState === 'listening' 
-                  ? 'bg-red-500 shadow-red-500/50' 
-                  : 'bg-blue-600 shadow-blue-500/50 hover:bg-blue-500'
-              }`}
-            >
-              {voiceState === 'listening' ? (
-                <Square className="w-10 h-10 text-white fill-current" />
-              ) : (
-                <Mic className="w-10 h-10 text-white" />
-              )}
-            </button>
-          ) : (
-            <button
-              onClick={stopAiSpeaking}
-              className="p-6 rounded-full shadow-2xl bg-amber-500 shadow-amber-500/50 hover:bg-amber-400 transition-all transform hover:scale-105 active:scale-95"
-            >
-              <Square className="w-10 h-10 text-white fill-current" />
-            </button>
+          {voiceState === 'SPEAKING' && (
+             <button
+                onClick={handleInterrupt}
+                className="bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/30 px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 transition-colors"
+             >
+                <Square className="w-4 h-4 fill-current" />
+                ⏹️ Stop Speaking
+             </button>
           )}
+        </div>
 
-          <div className="w-14" /> {/* Spacer to balance mute button */}
+        <div className="flex items-center gap-4 mt-2">
+            <button
+               onClick={() => setShowSummary(true)}
+               className="text-slate-400 hover:text-cyan-400 text-sm font-medium transition-colors"
+            >
+               View Session Summary
+            </button>
         </div>
 
         {/* Demo Scenarios */}
-        <div className="w-full max-w-3xl border-t border-slate-800 pt-6">
+        <div className="w-full max-w-3xl border-t border-slate-800 pt-6 mt-2">
           <div className="flex items-center gap-2 mb-4 justify-center">
             <Play className="w-4 h-4 text-cyan-400" />
-            <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Launch Voice Demo (SIH Presentation)</h3>
+            <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Interactive Voice Demo (Offline)</h3>
           </div>
           <div className="flex flex-wrap gap-3 justify-center">
             {demoDialogues.map((demo, idx) => (
               <button
                 key={idx}
                 onClick={() => runDemo(demo)}
-                disabled={voiceState !== 'ready'}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm transition-colors flex items-center gap-2"
               >
                 <span>{demo.title}</span>
               </button>
@@ -305,6 +250,37 @@ const VoiceAssistantPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Developer Debug Panel */}
+      <AnimatePresence>
+        {showDebug && telemetry && (
+          <motion.div
+            initial={{ opacity: 0, x: 300 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 300 }}
+            className="absolute top-24 right-6 w-80 bg-slate-900/95 border border-slate-700 shadow-2xl p-4 rounded-xl z-50 backdrop-blur-xl"
+          >
+            <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-2">
+              <h3 className="text-sm font-bold text-cyan-400">Developer Debug Panel</h3>
+              <button onClick={() => setShowDebug(false)} className="text-slate-500 hover:text-white">✕</button>
+            </div>
+            <div className="space-y-2 text-xs font-mono text-slate-300">
+              <div className="flex justify-between"><span className="text-slate-500">State Machine:</span> <span className="text-emerald-400">{telemetry.state}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">Current Turn:</span> <span>{telemetry.turnCount}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">Language:</span> <span>{telemetry.language}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">STT Engine Active:</span> <span>{telemetry.recognitionActive ? 'TRUE' : 'FALSE'}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">TTS Engine Active:</span> <span>{telemetry.ttsActive ? 'TRUE' : 'FALSE'}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">Audio Context:</span> <span>ACTIVE</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">Recovery Count:</span> <span>{telemetry.recoveryAttempts}</span></div>
+              {telemetry.lastError && (
+                <div className="mt-2 p-2 bg-red-500/10 border border-red-500/20 text-red-400 rounded">
+                  Last Error: {telemetry.lastError}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Post-Session Summary Drawer */}
       <AnimatePresence>
@@ -332,12 +308,12 @@ const VoiceAssistantPage = () => {
                 <div className="font-semibold text-blue-400">Academic Stress</div>
               </div>
               <div className="bg-slate-800 p-4 rounded-xl">
-                <div className="text-sm text-slate-400 mb-1">Language</div>
-                <div className="font-semibold text-cyan-400">Multilingual</div>
+                <div className="text-sm text-slate-400 mb-1">Total Turns</div>
+                <div className="font-semibold text-cyan-400">{telemetry?.turnCount || 0}</div>
               </div>
               <div className="bg-slate-800 p-4 rounded-xl">
                 <div className="text-sm text-slate-400 mb-1">Stress Level</div>
-                <div className="font-semibold text-amber-400">Elevated</div>
+                <div className="font-semibold text-amber-400">{Math.round(stressLevel)}%</div>
               </div>
             </div>
 
