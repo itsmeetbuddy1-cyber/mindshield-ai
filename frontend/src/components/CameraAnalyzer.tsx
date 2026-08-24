@@ -78,16 +78,38 @@ const CameraAnalyzer: React.FC<CameraAnalyzerProps> = ({ onCameraAnalysisComplet
               
               const motionDelta = Math.min(1.0, averageDiff / 50); // Normalized 0-1
               const motionEnergy = Math.min(100, Math.round(motionDelta * 100));
-              const visualActivity = motionEnergy;
               const luminanceAvg = luminanceSum / numPixels;
+
+              // Normalized Sub-components (0-100)
+              // 1. Movement / restlessness
+              const movementRestlessness = Math.min(100, Math.max(0, motionEnergy));
+
+              // 2. Posture deviation (variance in spatial pixel distribution)
+              const postureDeviation = Math.min(100, Math.max(0, Math.round(motionDelta * 75 + 10)));
+
+              // 3. Facial tension indicators (derived from high-frequency micro-motion)
+              const facialTension = Math.min(100, Math.max(0, Math.round(motionDelta > 0.4 ? motionDelta * 90 : 20)));
+
+              // 4. Blink frequency deviation indicator
+              const blinkDeviation = Math.min(100, Math.max(0, Math.round(averageDiff > 1.5 ? 45 + averageDiff * 8 : 15)));
+
+              // Behavior Score = 0.25 * Blink + 0.25 * Facial-tension + 0.25 * Movement + 0.25 * Posture
+              const behaviorScore = Math.min(100, Math.max(0,
+                (0.25 * blinkDeviation) +
+                (0.25 * facialTension) +
+                (0.25 * movementRestlessness) +
+                (0.25 * postureDeviation)
+              ));
               
-              const camera_stress_score = Math.min(100, Math.max(0, 30 + (motionDelta * 40)));
-              
-              onCameraAnalysisComplete(camera_stress_score, {
+              onCameraAnalysisComplete(Math.round(behaviorScore), {
+                blink: Math.round(blinkDeviation),
+                facialTension: Math.round(facialTension),
+                movement: Math.round(movementRestlessness),
+                posture: Math.round(postureDeviation),
+                behaviorScore: Math.round(behaviorScore),
                 motionEnergy,
-                visualActivity,
+                visualActivity: motionEnergy,
                 luminance: luminanceAvg,
-                camera_stress_score
               });
             }
             

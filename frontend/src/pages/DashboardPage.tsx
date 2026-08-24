@@ -7,7 +7,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import CameraAnalyzer from '../components/CameraAnalyzer';
 import VoiceAnalyzer from '../components/VoiceAnalyzer';
 import SignalDashboard from '../components/SignalDashboard';
+import ExplainableResults from '../components/ExplainableResults';
 import DeveloperDebugPanel from '../components/DeveloperDebugPanel';
+import { computeMultimodalStress, MultimodalResult } from '../services/multimodalScoring';
 
 const DashboardPage: React.FC = () => {
   const { t } = useTranslation();
@@ -16,46 +18,66 @@ const DashboardPage: React.FC = () => {
   
   const [showXai, setShowXai] = useState(false);
   
-  // Multimodal State
-  const [liveStress, setLiveStress] = useState(42);
-  const [selfReport, setSelfReport] = useState(5);
+  // Multimodal State (0-4 scale for self-report: 0->0, 1->25, 2->50, 3->75, 4->100)
+  const [selfReportAnswer, setSelfReportAnswer] = useState(2);
   
   const [cameraActive, setCameraActive] = useState(false);
-  const [cameraMetrics, setCameraMetrics] = useState({ score: 0, motion: 0 });
+  const [cameraMetrics, setCameraMetrics] = useState<any>({ score: 0, motion: 0, subComponents: null });
   
   const [micActive, setMicActive] = useState(false);
-  const [micMetrics, setMicMetrics] = useState({ score: 0, volume: 0 });
+  const [micMetrics, setMicMetrics] = useState<any>({ score: 0, volume: 0, subComponents: null });
 
-  const [history, setHistory] = useState<number[]>([40, 42, 45, 50, 48, 45, 42, 40, 41, 42, 43, 42]);
+  // Simulated wearable physiological telemetry (optional demo toggle)
+  const [physioData, setPhysioData] = useState<{ hrDeviation: number | null; hrvDeviation: number | null; breathingDeviation: number | null }>({
+    hrDeviation: null,
+    hrvDeviation: null,
+    breathingDeviation: null,
+  });
 
-  // Recalculate combined stress
+  const [multimodalResult, setMultimodalResult] = useState<MultimodalResult>(() => {
+    return computeMultimodalStress({
+      selfReportVal: 2,
+      selfReportScale: '0-4',
+    });
+  });
+
+  const [history, setHistory] = useState<number[]>([35, 38, 40, 42, 45, 48, 44, 42, 40, 42, 43, 45]);
+
+  // Recalculate using unified Multimodal Scoring Engine
   useEffect(() => {
-     let textStress = 35; // base
-     let selfStress = selfReport * 10;
-     let voiceStress = micActive && micMetrics.score > 0 ? micMetrics.score : 35;
-     let camStress = cameraActive && cameraMetrics.score > 0 ? cameraMetrics.score : 35;
+    const res = computeMultimodalStress({
+      voiceScore: micActive && micMetrics.score > 0 ? micMetrics.score : null,
+      behaviorScore: cameraActive && cameraMetrics.score > 0 ? cameraMetrics.score : null,
+      physiologicalScore: physioData.hrDeviation !== null ? Math.round((0.4 * (physioData.hrDeviation ?? 0)) + (0.4 * (physioData.hrvDeviation ?? 0)) + (0.2 * (physioData.breathingDeviation ?? 0))) : null,
+      selfReportVal: selfReportAnswer,
+      selfReportScale: '0-4',
+      voiceInputs: micActive ? micMetrics.subComponents : null,
+      behaviorInputs: cameraActive ? cameraMetrics.subComponents : null,
+    });
 
-     let weights = { text: 0.3, self: 0.25, voice: 0.15, camera: 0.1, interaction: 0.2 };
-     let combined = (textStress * weights.text) + (selfStress * weights.self) + (voiceStress * weights.voice) + (camStress * weights.camera) + (40 * weights.interaction);
-     
-     setLiveStress(Math.round(combined));
-     
-     setHistory(prev => {
-         const next = [...prev.slice(1), Math.round(combined)];
-         return next;
-     });
-  }, [selfReport, cameraMetrics, micMetrics, cameraActive, micActive]);
+    setMultimodalResult(res);
+
+    if (res.finalStressScore !== null) {
+      setHistory(prev => [...prev.slice(1), Math.round(res.finalStressScore!)]);
+    }
+  }, [selfReportAnswer, cameraMetrics, micMetrics, cameraActive, micActive, physioData]);
 
   const handleSimulateHigh = () => {
-      setSelfReport(9);
-      setMicMetrics({ score: 85, volume: 80 });
-      setCameraMetrics({ score: 90, motion: 70 });
+    setSelfReportAnswer(4);
+    setMicActive(true);
+    setMicMetrics({ score: 85, volume: 80, subComponents: { speakingRate: 85, pause: 80, pitch: 90, loudness: 85 } });
+    setCameraActive(true);
+    setCameraMetrics({ score: 88, motion: 75, subComponents: { blink: 85, facialTension: 90, movement: 88, posture: 85 } });
+    setPhysioData({ hrDeviation: 80, hrvDeviation: 85, breathingDeviation: 75 });
   };
 
   const handleSimulateCalm = () => {
-      setSelfReport(2);
-      setMicMetrics({ score: 20, volume: 10 });
-      setCameraMetrics({ score: 25, motion: 5 });
+    setSelfReportAnswer(0);
+    setMicActive(true);
+    setMicMetrics({ score: 18, volume: 15, subComponents: { speakingRate: 15, pause: 20, pitch: 18, loudness: 20 } });
+    setCameraActive(true);
+    setCameraMetrics({ score: 20, motion: 10, subComponents: { blink: 15, facialTension: 20, movement: 15, posture: 20 } });
+    setPhysioData({ hrDeviation: 10, hrvDeviation: 15, breathingDeviation: 10 });
   };
 
   const stats = [
@@ -99,15 +121,17 @@ const DashboardPage: React.FC = () => {
         {/* Left Column - Live Telemetry & Quick Analyzers */}
         <div className="lg:col-span-2 space-y-6">
           
-          {/* Signal Dashboard */}
+          {/* Signal Dashboard with 4-Tier Modalities */}
           <SignalDashboard 
               cameraStatus={cameraActive ? 'Active' : 'Off'}
               cameraSignal={cameraMetrics.motion}
               micStatus={micActive ? 'Active' : 'Off'}
               micSignal={micMetrics.volume}
-              textStatus="Ready"
-              textSentiment="Neutral"
-              selfReportVal={selfReport}
+              voiceScore={multimodalResult.voiceScore}
+              behaviorScore={multimodalResult.behaviorScore}
+              physiologicalScore={multimodalResult.physiologicalScore}
+              selfReportScore={multimodalResult.selfReportScore}
+              selfReportVal={selfReportAnswer}
               interactionCadence={45}
           />
 
@@ -117,16 +141,18 @@ const DashboardPage: React.FC = () => {
               <div>
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                   <Activity className="text-blue-500" />
-                  {t('dashboard.telemetry.title', 'Live Telemetry')}
+                  {t('dashboard.telemetry.title', 'Live Multimodal Telemetry')}
                 </h2>
-                <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">Real-time fusion of biometrics & context</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
+                  AI-based wellness estimation across Voice (30%), Behavior (20%), Physio (30%), Self-Report (20%)
+                </p>
               </div>
               <button 
                 onClick={() => setShowXai(!showXai)}
                 className="flex items-center gap-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 px-3 py-1.5 rounded-lg transition-colors"
               >
                 <Info className="w-4 h-4" />
-                {t('dashboard.telemetry.why', 'Why this score?')}
+                {showXai ? 'Hide Breakdown' : t('dashboard.telemetry.why', 'Why this score?')}
               </button>
             </div>
 
@@ -137,13 +163,17 @@ const DashboardPage: React.FC = () => {
                   <circle 
                     cx="50" cy="50" r="45" 
                     fill="none" stroke="currentColor" strokeWidth="8" 
-                    strokeDasharray={`${liveStress * 2.83} 283`}
-                    className={`${liveStress > 70 ? 'text-red-500' : liveStress > 40 ? 'text-yellow-500' : 'text-blue-500'} transition-all duration-1000 ease-out`} 
+                    strokeDasharray={`${(multimodalResult.finalStressScore ?? 0) * 2.83} 283`}
+                    className={`${(multimodalResult.finalStressScore ?? 0) > 74 ? 'text-red-500' : (multimodalResult.finalStressScore ?? 0) > 49 ? 'text-amber-500' : (multimodalResult.finalStressScore ?? 0) > 24 ? 'text-cyan-500' : 'text-emerald-500'} transition-all duration-1000 ease-out`} 
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                  <span className="text-4xl font-bold text-gray-900 dark:text-white">{liveStress}</span>
-                  <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Score</span>
+                  <span className="text-4xl font-bold text-gray-900 dark:text-white">
+                    {multimodalResult.finalStressScore !== null ? Math.round(multimodalResult.finalStressScore) : '--'}
+                  </span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    {multimodalResult.interpretation}
+                  </span>
                 </div>
               </div>
               
@@ -157,19 +187,19 @@ const DashboardPage: React.FC = () => {
                       initial={{ height: 0 }}
                       animate={{ height: `${val}%` }}
                       transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                      className={`flex-1 ${val > 70 ? 'bg-red-500/80' : val > 40 ? 'bg-yellow-500/80' : 'bg-blue-500/80'} rounded-t-sm`}
+                      className={`flex-1 ${val > 74 ? 'bg-red-500/80' : val > 49 ? 'bg-amber-500/80' : val > 24 ? 'bg-cyan-500/80' : 'bg-emerald-500/80'} rounded-t-sm`}
                     />
                   ))}
                 </div>
                 
-                {/* Interactive Slider right on telemetry card */}
+                {/* Interactive Slider right on telemetry card (0-4 scale) */}
                 <div className="bg-gray-50 dark:bg-slate-950 p-3 rounded-xl border border-gray-100 dark:border-slate-800">
                     <div className="flex justify-between text-xs text-gray-500 mb-1">
-                        <span>Self-Report Stress: {selfReport}</span>
+                        <span>Self-Report Rating: <strong>{selfReportAnswer} / 4</strong> ({selfReportAnswer === 0 ? 'Calm (0/100)' : selfReportAnswer === 1 ? 'Mild (25/100)' : selfReportAnswer === 2 ? 'Moderate (50/100)' : selfReportAnswer === 3 ? 'Stressed (75/100)' : 'Overwhelmed (100/100)'})</span>
                     </div>
                     <input 
-                        type="range" min="1" max="10" value={selfReport} 
-                        onChange={(e) => setSelfReport(parseInt(e.target.value))}
+                        type="range" min="0" max="4" step="1" value={selfReportAnswer} 
+                        onChange={(e) => setSelfReportAnswer(parseInt(e.target.value))}
                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700" 
                     />
                 </div>
@@ -185,27 +215,13 @@ const DashboardPage: React.FC = () => {
                   exit={{ height: 0, opacity: 0 }}
                   className="overflow-hidden mt-6 pt-6 border-t border-gray-200 dark:border-slate-800"
                 >
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Explainable AI (XAI) Breakdown</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="p-3 bg-gray-50 dark:bg-slate-950 rounded-xl">
-                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300 mb-1">
-                        <Mic className="w-4 h-4 text-purple-500" /> Voice Prosody
-                      </div>
-                      <div className="font-medium text-gray-900 dark:text-white">Score: {Math.round(micMetrics.score)}</div>
-                    </div>
-                    <div className="p-3 bg-gray-50 dark:bg-slate-950 rounded-xl">
-                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300 mb-1">
-                        <Camera className="w-4 h-4 text-emerald-500" /> Facial Micro-expr
-                      </div>
-                      <div className="font-medium text-gray-900 dark:text-white">Score: {Math.round(cameraMetrics.score)}</div>
-                    </div>
-                    <div className="p-3 bg-gray-50 dark:bg-slate-950 rounded-xl">
-                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300 mb-1">
-                        <Brain className="w-4 h-4 text-blue-500" /> Self-Report
-                      </div>
-                      <div className="font-medium text-gray-900 dark:text-white">Value: {selfReport}/10</div>
-                    </div>
-                  </div>
+                  <ExplainableResults 
+                    fusedScore={multimodalResult.finalStressScore ?? 0}
+                    category={multimodalResult.category}
+                    interpretation={multimodalResult.interpretation}
+                    signalContributions={multimodalResult.contributions}
+                    recommendedAction={multimodalResult.recommendedAction}
+                  />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -217,14 +233,32 @@ const DashboardPage: React.FC = () => {
                   isStreamActive={cameraActive}
                   onCameraAnalysisComplete={(score, metrics) => {
                       setCameraActive(true);
-                      setCameraMetrics({ score, motion: metrics.motionEnergy });
+                      setCameraMetrics({ 
+                        score, 
+                        motion: metrics.motionEnergy, 
+                        subComponents: {
+                          blink: metrics.blink,
+                          facialTension: metrics.facialTension,
+                          movement: metrics.movement,
+                          posture: metrics.posture
+                        } 
+                      });
                   }}
               />
               <VoiceAnalyzer 
                   isStreamActive={micActive}
                   onVoiceAnalysisComplete={(score, features) => {
                       setMicActive(true);
-                      setMicMetrics({ score, volume: features.voiceActivity });
+                      setMicMetrics({ 
+                        score, 
+                        volume: features.volume, 
+                        subComponents: {
+                          speakingRate: features.speakingRate,
+                          pause: features.pause,
+                          pitch: features.pitch,
+                          loudness: features.loudness
+                        } 
+                      });
                   }}
               />
           </div>
@@ -267,12 +301,12 @@ const DashboardPage: React.FC = () => {
 
       <DeveloperDebugPanel 
           textStress={35}
-          selfReport={selfReport * 10}
+          selfReport={selfReportAnswer * 25}
           voiceActivity={micMetrics.volume}
           cameraMotion={cameraMetrics.motion}
-          weights={{ text: 30, self: 25, voice: 15, camera: 10, interaction: 20 }}
-          finalScore={liveStress}
-          confidence={85}
+          weights={{ text: 30, self: 20, voice: 30, camera: 20, interaction: 0 }}
+          finalScore={multimodalResult.finalStressScore ?? 45}
+          confidence={Math.round(multimodalResult.confidence * 100)}
           onSimulateHigh={handleSimulateHigh}
           onSimulateCalm={handleSimulateCalm}
           onToggleCamera={() => setCameraActive(false)}

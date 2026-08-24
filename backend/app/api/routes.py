@@ -16,6 +16,7 @@ from app.core.config import settings
 from app.core.auth import hash_password, verify_password, create_access_token, get_current_user, get_optional_user
 from app.services.text_analyzer import analyze_text_stress
 from app.services.multimodal_fusion import fuse_signals
+from app.services.multimodal_scoring import compute_multimodal_stress
 
 router = APIRouter(prefix="/api")
 
@@ -107,6 +108,71 @@ def create_check_in(request: schemas.CheckInRequest, user: models.User = Depends
     db.commit()
     db.refresh(db_checkin)
     return db_checkin
+
+@router.post("/score-multimodal", response_model=schemas.MultimodalScoreResponse)
+def api_score_multimodal(request: schemas.MultimodalScoreRequest, db: Session = Depends(get_db)):
+    result = compute_multimodal_stress(
+        voice_score=request.voice_score,
+        behavior_score=request.behavior_score,
+        physiological_score=request.physiological_score,
+        self_report_score=request.self_report_score,
+        voice_inputs=request.voice_inputs,
+        behavior_inputs=request.behavior_inputs,
+        physiological_inputs=request.physiological_inputs,
+        self_report_val=request.self_report_val,
+        self_report_scale=request.self_report_scale or "0-4",
+        user_baseline=request.user_baseline,
+        custom_weights=request.custom_weights
+    )
+
+    if result.get("final_stress_score") is not None:
+        reading = models.StressReading(
+            user_id=1,
+            stress_score=result["final_stress_score"],
+            category=result["category"],
+            confidence=result.get("confidence", 0.8),
+            signals={
+                "voice_score": result.get("voice_score"),
+                "behavior_score": result.get("behavior_score"),
+                "physiological_score": result.get("physiological_score"),
+                "self_report_score": result.get("self_report_score"),
+                "interpretation": result.get("interpretation"),
+                "modalities_available": result.get("modalities_available", [])
+            },
+            recommended_action=result["recommended_action"]
+        )
+        db.add(reading)
+        db.commit()
+
+    return result
+
+@router.post("/multimodal-fusion")
+def api_multimodal_fusion(request: Dict[str, Any], db: Session = Depends(get_db)):
+    """Bridge endpoint for fusion analysis."""
+    # Check if request uses new multimodal structure
+    if any(k in request for k in ["voice_score", "behavior_score", "physiological_score", "voice_inputs", "behavior_inputs"]):
+        res = compute_multimodal_stress(
+            voice_score=request.get("voice_score"),
+            behavior_score=request.get("behavior_score") or request.get("camera_score"),
+            physiological_score=request.get("physiological_score"),
+            self_report_score=request.get("self_report_score"),
+            voice_inputs=request.get("voice_inputs"),
+            behavior_inputs=request.get("behavior_inputs"),
+            physiological_inputs=request.get("physiological_inputs"),
+            self_report_val=request.get("self_report_val") or request.get("self_reported_stress"),
+            user_baseline=request.get("user_baseline")
+        )
+        return res
+    else:
+        # Legacy signal fusion
+        return fuse_signals(
+            self_report_score=request.get("self_report_score"),
+            text_score=request.get("text_score"),
+            voice_score=request.get("voice_score"),
+            camera_score=request.get("camera_score"),
+            interaction_score=request.get("interaction_score"),
+            weights=request.get("weights")
+        )
 
 @router.post("/analyze-stress", response_model=schemas.StressAnalysisResponse)
 def api_analyze_stress(request: schemas.StressAnalysisRequest, db: Session = Depends(get_db)):

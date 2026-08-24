@@ -57,32 +57,68 @@ const VoiceAnalyzer: React.FC<VoiceAnalyzerProps> = ({ onVoiceAnalysisComplete, 
       const dataArray = new Uint8Array(bufferLength);
 
       let lastCall = performance.now();
+      let pauseCounter = 0;
+      let speechCounter = 0;
 
       const analyzeAudio = (time: number) => {
         analyser.getByteFrequencyData(dataArray);
         
         let sum = 0;
         let peakFreq = 0;
+        let peakIndex = 0;
         for (let i = 0; i < bufferLength; i++) {
           sum += dataArray[i];
-          if (dataArray[i] > peakFreq) peakFreq = dataArray[i];
+          if (dataArray[i] > peakFreq) {
+            peakFreq = dataArray[i];
+            peakIndex = i;
+          }
         }
         
-        const rms = Math.sqrt(sum / bufferLength); // Rough RMS
-        const normalizedVolume = Math.min(100, (rms / 255) * 100 * 2); // Boost a bit for visibility
+        const rms = Math.sqrt(sum / bufferLength);
+        const normalizedVolume = Math.min(100, (rms / 255) * 100 * 2);
         setVolumeLevel(normalizedVolume);
+
+        if (normalizedVolume > 15) {
+          speechCounter++;
+        } else {
+          pauseCounter++;
+        }
         
-        if (time - lastCall > 500) { // Every 500ms send an update
-           const voiceActivity = normalizedVolume;
-           const voice_stress_score = Math.min(100, Math.max(0, 20 + (voiceActivity * 0.8) + (peakFreq > 150 ? 10 : 0)));
-           
-           onVoiceAnalysisComplete(voice_stress_score, {
-             voiceActivity,
-             peakFreq,
-             rms,
-             voice_stress_score
-           });
-           lastCall = time;
+        if (time - lastCall > 500) {
+          // Normalize sub-components to 0-100
+          const loudnessScore = Math.min(100, Math.max(0, normalizedVolume));
+          
+          // Estimated pitch index in human vocal band (85-255Hz)
+          const pitchScore = Math.min(100, Math.max(0, (peakIndex / bufferLength) * 200));
+          
+          // Speaking rate indicator based on dynamic cadence
+          const speakingRateScore = Math.min(100, Math.max(0, (speechCounter / Math.max(1, speechCounter + pauseCounter)) * 100));
+          
+          // Pause pattern indicator (abnormal hesitation or zero pause)
+          const pauseRatio = pauseCounter / Math.max(1, speechCounter + pauseCounter);
+          const pauseScore = Math.min(100, Math.max(0, Math.abs(pauseRatio - 0.20) * 150));
+          
+          // Voice Score = 0.30 * Speaking-rate + 0.25 * Pause + 0.25 * Pitch + 0.20 * Loudness
+          const voiceScore = Math.min(100, Math.max(0,
+            (0.30 * speakingRateScore) +
+            (0.25 * pauseScore) +
+            (0.25 * pitchScore) +
+            (0.20 * loudnessScore)
+          ));
+          
+          onVoiceAnalysisComplete(Math.round(voiceScore), {
+            speakingRate: Math.round(speakingRateScore),
+            pause: Math.round(pauseScore),
+            pitch: Math.round(pitchScore),
+            loudness: Math.round(loudnessScore),
+            voiceScore: Math.round(voiceScore),
+            rms,
+            volume: Math.round(normalizedVolume),
+          });
+          
+          lastCall = time;
+          speechCounter = 0;
+          pauseCounter = 0;
         }
 
         requestAnimationFrameRef.current = requestAnimationFrame(analyzeAudio);

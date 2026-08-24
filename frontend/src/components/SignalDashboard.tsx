@@ -5,68 +5,135 @@ interface SignalDashboardProps {
   cameraSignal: number;
   micStatus: string;
   micSignal: number;
-  textStatus: string;
-  textSentiment: string;
+  voiceScore?: number | null;
+  behaviorScore?: number | null;
+  physiologicalScore?: number | null;
+  selfReportScore?: number | null;
+  textStatus?: string;
+  textSentiment?: string;
   selfReportVal: number;
   interactionCadence: number;
 }
 
 const SignalDashboard: React.FC<SignalDashboardProps> = ({
-    cameraStatus, cameraSignal, micStatus, micSignal, textStatus, textSentiment, selfReportVal, interactionCadence
+  cameraStatus,
+  cameraSignal,
+  micStatus,
+  micSignal,
+  voiceScore,
+  behaviorScore,
+  physiologicalScore,
+  selfReportScore,
+  selfReportVal,
+  interactionCadence,
 }) => {
-    return (
-        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-gray-200 dark:border-slate-800 shadow-sm mb-6">
-            <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    📊 Live Sensor Status
-                </h3>
-                <span className="text-xs text-gray-500">Updated just now</span>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                <div className="p-3 bg-gray-50 dark:bg-slate-950 rounded-xl">
-                    <div className="flex justify-between mb-1">
-                        <span className="flex items-center gap-1 font-medium text-gray-700 dark:text-gray-300">📷 Camera</span>
-                        <span className={`text-xs ${cameraStatus === 'Active' ? 'text-green-500' : 'text-gray-500'}`}>{cameraStatus}</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-1.5 dark:bg-gray-700 mb-1">
-                        <div className="bg-emerald-500 h-1.5 rounded-full transition-all duration-300" style={{ width: `${cameraSignal}%` }}></div>
-                    </div>
-                    <div className="text-xs text-gray-400">Signal: {Math.round(cameraSignal)}</div>
-                </div>
-
-                <div className="p-3 bg-gray-50 dark:bg-slate-950 rounded-xl">
-                    <div className="flex justify-between mb-1">
-                        <span className="flex items-center gap-1 font-medium text-gray-700 dark:text-gray-300">🎙️ Microphone</span>
-                        <span className={`text-xs ${micStatus === 'Active' ? 'text-green-500' : 'text-gray-500'}`}>{micStatus}</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-1.5 dark:bg-gray-700 mb-1">
-                        <div className="bg-blue-500 h-1.5 rounded-full transition-all duration-75" style={{ width: `${micSignal}%` }}></div>
-                    </div>
-                    <div className="text-xs text-gray-400">Vol: {Math.round(micSignal)}</div>
-                </div>
-
-                <div className="p-3 bg-gray-50 dark:bg-slate-950 rounded-xl">
-                    <div className="flex justify-between mb-1">
-                        <span className="flex items-center gap-1 font-medium text-gray-700 dark:text-gray-300">💬 Text Analysis</span>
-                        <span className="text-xs text-blue-500">{textStatus}</span>
-                    </div>
-                    <div className="text-xs text-gray-500 mt-2">Latest: <span className="font-semibold">{textSentiment}</span></div>
-                </div>
-
-                <div className="p-3 bg-gray-50 dark:bg-slate-950 rounded-xl flex flex-col justify-between">
-                     <div className="flex justify-between mb-1">
-                        <span className="flex items-center gap-1 font-medium text-gray-700 dark:text-gray-300">📝 Self-Report</span>
-                        <span className="text-xs text-purple-500">{selfReportVal}/10</span>
-                    </div>
-                    <div className="flex justify-between mb-1 mt-2">
-                        <span className="flex items-center gap-1 font-medium text-gray-700 dark:text-gray-300">⌨️ Interaction</span>
-                        <span className="text-xs text-orange-500">{interactionCadence} CPM</span>
-                    </div>
-                </div>
-            </div>
+  return (
+    <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-gray-200 dark:border-slate-800 shadow-sm mb-6">
+      <div className="flex justify-between items-center mb-4">
+        <div>
+          <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            📊 Multimodal Signal Modalities (4-Tier Architecture)
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Normalized 0–100 biometrics & self-reports with dynamic re-weighting
+          </p>
         </div>
-    );
+        <span className="text-[11px] font-mono px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full border border-blue-200 dark:border-blue-800">
+          LIVE FUSION
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+        {/* Modality 1: Voice (30% Weight) */}
+        <div className="p-3 bg-gray-50 dark:bg-slate-950 rounded-xl border border-gray-100 dark:border-slate-800/80">
+          <div className="flex justify-between items-center mb-1">
+            <span className="flex items-center gap-1 font-semibold text-gray-800 dark:text-gray-200">
+              🎙️ Voice Cues
+            </span>
+            <span className={`text-xs font-bold ${micStatus === 'Active' ? 'text-emerald-500' : 'text-slate-400'}`}>
+              {micStatus === 'Active' ? `${voiceScore ?? Math.round(micSignal)}/100` : 'OFF'}
+            </span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-1.5 dark:bg-gray-800 mb-1.5">
+            <div
+              className="bg-blue-500 h-1.5 rounded-full transition-all duration-150"
+              style={{ width: `${Math.min(100, voiceScore ?? micSignal)}%` }}
+            ></div>
+          </div>
+          <div className="text-[11px] text-gray-500 dark:text-slate-400 flex justify-between">
+            <span>Weight: 30%</span>
+            <span>Rate • Pause • Pitch • Loud</span>
+          </div>
+        </div>
+
+        {/* Modality 2: Behavior (20% Weight) */}
+        <div className="p-3 bg-gray-50 dark:bg-slate-950 rounded-xl border border-gray-100 dark:border-slate-800/80">
+          <div className="flex justify-between items-center mb-1">
+            <span className="flex items-center gap-1 font-semibold text-gray-800 dark:text-gray-200">
+              📷 Behavior / Cam
+            </span>
+            <span className={`text-xs font-bold ${cameraStatus === 'Active' ? 'text-emerald-500' : 'text-slate-400'}`}>
+              {cameraStatus === 'Active' ? `${behaviorScore ?? Math.round(cameraSignal)}/100` : 'OFF'}
+            </span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-1.5 dark:bg-gray-800 mb-1.5">
+            <div
+              className="bg-emerald-500 h-1.5 rounded-full transition-all duration-300"
+              style={{ width: `${Math.min(100, behaviorScore ?? cameraSignal)}%` }}
+            ></div>
+          </div>
+          <div className="text-[11px] text-gray-500 dark:text-slate-400 flex justify-between">
+            <span>Weight: 20%</span>
+            <span>Blink • Tension • Motion • Posture</span>
+          </div>
+        </div>
+
+        {/* Modality 3: Physiological (30% Weight) */}
+        <div className="p-3 bg-gray-50 dark:bg-slate-950 rounded-xl border border-gray-100 dark:border-slate-800/80">
+          <div className="flex justify-between items-center mb-1">
+            <span className="flex items-center gap-1 font-semibold text-gray-800 dark:text-gray-200">
+              💓 Physiological
+            </span>
+            <span className="text-xs font-bold text-slate-400">
+              {physiologicalScore !== null && physiologicalScore !== undefined ? `${physiologicalScore}/100` : 'N/A'}
+            </span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-1.5 dark:bg-gray-800 mb-1.5">
+            <div
+              className="bg-amber-500 h-1.5 rounded-full transition-all duration-300"
+              style={{ width: `${physiologicalScore ?? 0}%` }}
+            ></div>
+          </div>
+          <div className="text-[11px] text-gray-500 dark:text-slate-400 flex justify-between">
+            <span>Weight: 30%</span>
+            <span>HR • HRV • Respiration</span>
+          </div>
+        </div>
+
+        {/* Modality 4: Self-Report (20% Weight) */}
+        <div className="p-3 bg-gray-50 dark:bg-slate-950 rounded-xl border border-gray-100 dark:border-slate-800/80">
+          <div className="flex justify-between items-center mb-1">
+            <span className="flex items-center gap-1 font-semibold text-gray-800 dark:text-gray-200">
+              📝 Self-Report
+            </span>
+            <span className="text-xs font-bold text-purple-500">
+              {selfReportScore ?? selfReportVal * 25}/100
+            </span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-1.5 dark:bg-gray-800 mb-1.5">
+            <div
+              className="bg-purple-500 h-1.5 rounded-full transition-all duration-300"
+              style={{ width: `${Math.min(100, selfReportScore ?? selfReportVal * 25)}%` }}
+            ></div>
+          </div>
+          <div className="text-[11px] text-gray-500 dark:text-slate-400 flex justify-between">
+            <span>Weight: 20%</span>
+            <span>Ans: {selfReportVal}/4 (Score: {selfReportVal * 25})</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default SignalDashboard;

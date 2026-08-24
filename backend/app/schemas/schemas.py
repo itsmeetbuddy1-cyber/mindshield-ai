@@ -138,3 +138,44 @@ class DemoStateResponse(BaseSchema):
     category: str
     message: str
     action: str
+
+class MultimodalScoreRequest(BaseModel):
+    voice_score: Optional[float] = None
+    behavior_score: Optional[float] = None
+    physiological_score: Optional[float] = None
+    self_report_score: Optional[float] = None
+    voice_inputs: Optional[Dict[str, Any]] = None
+    behavior_inputs: Optional[Dict[str, Any]] = None
+    physiological_inputs: Optional[Dict[str, Any]] = None
+    self_report_val: Optional[float] = None
+    self_report_scale: Optional[str] = "0-4"
+    user_baseline: Optional[Dict[str, float]] = None
+    custom_weights: Optional[Dict[str, float]] = None
+
+class ModalityContribution(BaseModel):
+    modality: str
+    label: str
+    score: Optional[float] = None
+    base_weight: float
+    effective_weight: float
+    contribution_points: float
+    available: bool
+    details: Optional[Dict[str, Any]] = None
+
+class MultimodalScoreResponse(BaseSchema):
+    status: str
+    voice_score: Optional[float] = None
+    behavior_score: Optional[float] = None
+    physiological_score: Optional[float] = None
+    self_report_score: Optional[float] = None
+    final_stress_score: Optional[float] = None
+    interpretation: str
+    category: Optional[str] = None
+    confidence: Optional[float] = None
+    modalities_available: List[str] = []
+    modalities_unavailable: List[str] = []
+    contributions: List[ModalityContribution] = []
+    is_medical_diagnosis: bool = False
+    disclaimer: str
+    recommended_action: str
+

@@ -79,6 +79,7 @@ const apiService = {
 
   // Multimodal Analysis
   analyzeMultimodal: (data: any) => api.post('/analyze-multimodal', data),
+  scoreMultimodal: (data: any) => api.post('/score-multimodal', data),
 }
 
 export default apiService
