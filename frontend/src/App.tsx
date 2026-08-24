@@ -23,6 +23,7 @@ import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
 import SIHExplainerPage from './pages/SIHExplainerPage'
 import VoiceAssistantPage from './pages/VoiceAssistantPage'
+import HelplinePage from './pages/HelplinePage'
 
 function App() {
   return (
@@ -58,6 +59,7 @@ function App() {
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/demo" element={<DemoPage />} />
                 <Route path="/sih-explain" element={<SIHExplainerPage />} />
+                <Route path="/helplines" element={<HelplinePage />} />
               </Route>
             </Routes>
           </AnimatePresence>

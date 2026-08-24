@@ -47,6 +47,7 @@ const MainLayout = () => {
     { name: t('nav.analytics', 'Analytics'), path: '/analytics', icon: BarChart3 },
     { name: t('nav.toolkit', 'Toolkit'), path: '/toolkit', icon: Heart },
     { name: t('nav.journal', 'Journal'), path: '/journal', icon: BookOpen },
+    { name: t('nav.helplines', 'Crisis Helplines 🆘'), path: '/helplines', icon: Heart },
     { name: t('nav.profile', 'Profile'), path: '/profile', icon: User },
     { name: t('nav.demo', 'Demo Mode'), path: '/demo', icon: MonitorPlay },
     { name: t('nav.sih_explain', 'SIH Explainer'), path: '/sih-explain', icon: Info },

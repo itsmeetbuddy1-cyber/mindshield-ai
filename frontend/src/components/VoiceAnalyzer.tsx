@@ -85,33 +85,44 @@ const VoiceAnalyzer: React.FC<VoiceAnalyzerProps> = ({ onVoiceAnalysisComplete, 
         }
         
         if (time - lastCall > 500) {
-          // Normalize sub-components to 0-100
+          // Normalize volume (0-100)
           const loudnessScore = Math.min(100, Math.max(0, normalizedVolume));
           
-          // Estimated pitch index in human vocal band (85-255Hz)
-          const pitchScore = Math.min(100, Math.max(0, (peakIndex / bufferLength) * 200));
+          // Estimated pitch index in human vocal band
+          const pitchScore = Math.min(100, Math.max(0, (peakIndex / bufferLength) * 150));
           
-          // Speaking rate indicator based on dynamic cadence
-          const speakingRateScore = Math.min(100, Math.max(0, (speechCounter / Math.max(1, speechCounter + pauseCounter)) * 100));
+          // Speaking rate indicator: Normal continuous speaking (ratio 0.4 - 0.7) produces calm/mild stress (20-40)
+          // Only extreme saturation (e.g. constant screaming or hyper-fast frantic speech) should elevate score
+          const totalFrames = Math.max(1, speechCounter + pauseCounter);
+          const speechRatio = speechCounter / totalFrames;
           
-          // Pause pattern indicator (abnormal hesitation or zero pause)
-          const pauseRatio = pauseCounter / Math.max(1, speechCounter + pauseCounter);
-          const pauseScore = Math.min(100, Math.max(0, Math.abs(pauseRatio - 0.20) * 150));
+          // Realistic speaking rate score: 0.5 is optimal conversation (~25 score), 0.95+ indicates rapid breathless speech (~65-75 score)
+          const speakingRateScore = Math.min(100, Math.max(15, Math.pow(speechRatio, 1.8) * 75 + 15));
           
-          // Voice Score = 0.30 * Speaking-rate + 0.25 * Pause + 0.25 * Pitch + 0.20 * Loudness
-          const voiceScore = Math.min(100, Math.max(0,
-            (0.30 * speakingRateScore) +
-            (0.25 * pauseScore) +
-            (0.25 * pitchScore) +
-            (0.20 * loudnessScore)
-          ));
+          // Pause pattern score: normal conversation pauses (15-30% pauses) are healthy (~20 score)
+          const pauseRatio = pauseCounter / totalFrames;
+          const pauseScore = Math.min(100, Math.max(15, Math.abs(pauseRatio - 0.25) * 80 + 15));
           
-          onVoiceAnalysisComplete(Math.round(voiceScore), {
+          // Weighted Voice Score = 0.30 * Speaking-rate + 0.25 * Pause + 0.25 * Pitch + 0.20 * Loudness
+          let rawVoiceScore = (0.30 * speakingRateScore) + (0.25 * pauseScore) + (0.25 * pitchScore) + (0.20 * loudnessScore);
+          
+          // Scale to realistic range: quiet/normal speech is 25-45, elevated is 50-70, screaming/crisis is 75-95
+          if (normalizedVolume < 10) {
+            rawVoiceScore = 20; // Ambient room silence / resting
+          } else if (normalizedVolume < 50) {
+            rawVoiceScore = Math.min(48, Math.max(22, rawVoiceScore * 0.75)); // Normal conversational tone
+          } else {
+            rawVoiceScore = Math.min(92, Math.max(45, rawVoiceScore * 0.95)); // Loud / intense voice
+          }
+          
+          const finalVoiceScore = Math.round(Math.min(100, Math.max(15, rawVoiceScore)));
+          
+          onVoiceAnalysisComplete(finalVoiceScore, {
             speakingRate: Math.round(speakingRateScore),
             pause: Math.round(pauseScore),
             pitch: Math.round(pitchScore),
             loudness: Math.round(loudnessScore),
-            voiceScore: Math.round(voiceScore),
+            voiceScore: finalVoiceScore,
             rms,
             volume: Math.round(normalizedVolume),
           });

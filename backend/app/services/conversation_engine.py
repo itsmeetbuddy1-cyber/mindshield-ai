@@ -1,5 +1,6 @@
-from typing import Dict, List, Any, Optional
+﻿from typing import Dict, List, Any, Optional
 import uuid
+import re
 
 class ConversationSession:
     def __init__(self, session_id: str):
@@ -49,7 +50,7 @@ class ConversationEngine:
         topic = session.current_topic
         
         # Academic & Study
-        if any(w in msg_l for w in ["exam", "test", "pariksha", "padhai", "paper", "marks", "grade", "syllabus"]):
+        if any(w in msg_l for w in ["exam", "test", "pariksha", "padhai", "paper", "marks", "grade", "syllabus", "fail", "college", "school"]):
             topic = "academic stress"
             if "exam approaching" not in facts: facts.append("exam approaching")
         if any(w in msg_l for w in ["concentrat", "focus", "dhyan", "ekagrata", "blank"]):
@@ -60,22 +61,22 @@ class ConversationEngine:
             if "studying 4-5 hours daily" not in facts: facts.append("studying 4-5 hours daily")
             
         # Parental & Family Expectations
-        if any(w in msg_l for w in ["parent", "parents", "maa", "papa", "mom", "dad", "family", "expect", "shout", "pressure"]):
+        if any(w in msg_l for w in ["parent", "parents", "maa", "papa", "mom", "dad", "family", "expect", "shout", "pressure", "ghar"]):
             topic = "parental expectations"
             if "parental pressure" not in facts: facts.append("parental pressure")
             
         # Sleep & Physical
-        if any(w in msg_l for w in ["sleep", "insomnia", "neend", "nind", "tired", "thakan", "exhausted", "late night"]):
+        if any(w in msg_l for w in ["sleep", "insomnia", "neend", "nind", "tired", "thakan", "exhausted", "late night", "racing"]):
             topic = "sleep difficulty"
             if "trouble sleeping" not in facts: facts.append("trouble sleeping")
             
         # Relationship
-        if any(w in msg_l for w in ["friend", "relationship", "breakup", "partner", "fight", "dost", "ladai"]):
+        if any(w in msg_l for w in ["friend", "relationship", "breakup", "partner", "fight", "dost", "ladai", "love"]):
             topic = "relationship tension"
             if "relationship tension" not in facts: facts.append("relationship tension")
             
         # Work & Burnout
-        if any(w in msg_l for w in ["work", "office", "job", "boss", "deadline", "burnout"]):
+        if any(w in msg_l for w in ["work", "office", "job", "boss", "deadline", "burnout", "naukri", "kaam"]):
             topic = "workload burnout"
             if "workplace burnout" not in facts: facts.append("workplace burnout")
 
@@ -83,25 +84,28 @@ class ConversationEngine:
 
     def _calculate_stress(self, message: str, session: ConversationSession) -> float:
         msg_l = message.lower()
-        baseline = session.stress_trajectory[-1] if session.stress_trajectory else 45.0
+        baseline = session.stress_trajectory[-1] if session.stress_trajectory else 35.0
         delta = 0.0
         
         # High distress terms
         if any(w in msg_l for w in ["fail", "panic", "overwhelmed", "cannot handle", "crying", "suffocating", "hate this", "blanking out"]):
-            delta += 14.0
-        elif any(w in msg_l for w in ["stress", "anxious", "tension", "worry", "pressure", "scared", "chinta", "distract"]):
-            delta += 7.0
-        elif any(w in msg_l for w in ["calmer", "better", "breathe", "relief", "understand", "thanks", "helpful", "shant", "confident"]):
-            delta -= 12.0
+            delta += 12.0
+        elif any(w in msg_l for w in ["stress", "anxious", "tension", "worry", "pressure", "scared", "chinta", "distract", "pareshan"]):
+            delta += 5.0
+        elif any(w in msg_l for w in ["calmer", "better", "breathe", "relief", "understand", "thanks", "helpful", "shant", "confident", "theek", "goodbye"]):
+            delta -= 10.0
             
-        score = max(15.0, min(95.0, baseline + delta))
+        score = max(18.0, min(85.0, baseline + delta))
         return round(score, 1)
 
     def process_message(self, message: str, session_id: Optional[str] = None, language: str = "en") -> Dict[str, Any]:
         session = self.get_session(session_id)
         msg_raw = message.lower().strip()
-        msg_l = msg_raw.strip(" .!?,")
-        lang = language if language in ["en", "hi", "gu"] else "en"
+        msg_clean = re.sub(r'[^\w\s]', '', msg_raw)
+        
+        is_hindi = language == "hi" or any(w in msg_raw for w in ["hai", "hoon", "raha", "rahi", "kya", "bhai", "tension", "padhai", "dar", "neend", "bohot", "mujhe", "kaise", "samajh", "batao"])
+        is_gujarati = language == "gu" or any(w in msg_raw for w in ["chhe", "chhu", "thay", "mane", "su", "karo", "chinta"])
+        lang = "hi" if is_hindi else "gu" if is_gujarati else "en"
         
         session.user_facts, topic = self._extract_facts_and_topic(message, session)
         stress_score = self._calculate_stress(message, session)
@@ -109,25 +113,13 @@ class ConversationEngine:
         direct_answer = ""
         follow_up_q = ""
         
-        # 1. SPECIFIC SCENARIOS & STEP-BY-STEP DIALOGUE FLOW
+        # 1. SPECIFIC SCENARIOS WITH UNIQUE MULTI-TURN DISPATCH
         
-        # Priority 1: Guided Breathing / Relaxation Request
-        if any(w in msg_raw for w in ["breathing", "breathe", "saans", "shant karwao"]):
-            if lang == "hi":
-                direct_answer = "Chaliye ek 4-4-4 Box Breathing karte hain: 4 second saans andar lijiye... 4 second rokiye... aur 4 second me dheere se chodiye."
-                follow_up_q = "Kya aap thoda relax aur calm feel kar rahe hain?"
-            elif lang == "gu":
-                direct_answer = "ચાલો ૪ સેકન્ડ ઊંડો શ્વાસ લઈએ... ૪ સેકન્ડ રોકો... અને ૪ સેકન્ડમાં બહાર કાઢો."
-                follow_up_q = "શું તમે થોડી શાંતિ અનુભવી રહ્યા છો?"
-            else:
-                direct_answer = "Let's do a simple 4-4-4 Box Breathing: Inhale slowly for 4 seconds... hold for 4 seconds... and gently exhale for 4 seconds."
-                follow_up_q = "How does your body feel after that breath?"
-
-        # Priority 2: Farewell / Goodbye
-        elif any(w in msg_raw for w in ["goodbye", "bye", "alvida", "see you", "signing off", "chalta hoon"]):
+        # Scenario: Farewell / Goodbye
+        if any(w in msg_clean for w in ["goodbye", "bye", "alvida", "see you", "signing off", "chalta hoon"]):
             if lang == "hi":
                 direct_answer = "Alvida! Aapne aaj bohot acchi progress ki hai. Jab bhi zaroorat ho, Shield AI hamesha yahan hai."
-                follow_up_q = "All the best aapke exams ke liye!"
+                follow_up_q = "All the best aapke exams aur preparation ke liye!"
             elif lang == "gu":
                 direct_answer = "આવજો! તમારી પરીક્ષા માટે ખૂબ ખૂબ શુભેચ્છાઓ."
                 follow_up_q = "જ્યારે પણ જરૂર હોય ત્યારે હું અહીં છું."
@@ -135,8 +127,8 @@ class ConversationEngine:
                 direct_answer = "Goodbye! You've made great progress today breaking down your study plan. Shield AI is always here whenever you need support."
                 follow_up_q = "Best of luck with your preparation!"
 
-        # Priority 3: Ready to Study / Positive Motivation
-        elif any(w in msg_raw for w in ["ready to start", "going to study", "start my", "shuru karta hoon", "padhne ja raha"]):
+        # Scenario: Ready to Study / Positive Momentum
+        elif any(w in msg_clean for w in ["ready to start", "going to study", "start my", "shuru karta hoon", "padhne ja raha"]):
             if lang == "hi":
                 direct_answer = "Bohot badhiya! Phone ko side rakh kar pura focus ek hi topic par lagayein. 25 minute baad break lena mat bhooliyega."
                 follow_up_q = "Aap completely ready hain, all the best!"
@@ -147,162 +139,8 @@ class ConversationEngine:
                 direct_answer = "Fantastic! Put your phone on silent, focus strictly on one topic, and enjoy the satisfaction of completing this sprint."
                 follow_up_q = "You have got this — go crush your 25-minute study block!"
 
-        # Priority 4: Direct Advice / How-to Questions ("What should I do?", "How to...?")
-        elif any(w in msg_raw for w in ["what should i do", "how to", "how can i", "kya karun", "shu karu", "kaise karu"]):
-            if "concentrat" in msg_l or "phone" in str(session.user_facts) or "distract" in str(session.user_facts):
-                if lang == "hi":
-                    direct_answer = "Sabse pehle phone ko doosre room me rakhein aur sirf 20-25 minute ka ek Pomodoro block start karein. Agar focus break ho toh 2 minute ka deep breathing break lein."
-                    follow_up_q = "Kya aap agla 25-minute focus session try karne ke liye ready hain?"
-                elif lang == "gu":
-                    direct_answer = "૨૦-૨૫ મિનિટનો પોમોડોરો બ્લોક બનાવો અને ફોન બીજા રૂમમાં મૂકો."
-                    follow_up_q = "શું તમે ૨૫ મિનિટ વાંચવા માટે તૈયાર છો?"
-                else:
-                    direct_answer = "Try studying for just 20–25 minutes without your phone, then take a short break. If concentration is still difficult, we can figure out what's making it harder for you."
-                    follow_up_q = "Is it mainly distraction or anxiety?"
-            else:
-                if lang == "hi":
-                    direct_answer = "Pehle ek gehri saans lijiye. Jo cheezein aapke direct control me hain, unhe note karke ek-ek karke complete karein."
-                    follow_up_q = "Aaj ke din ka sabse zaroori task kya hai jise hum pehle complete kar sakte hain?"
-                elif lang == "gu":
-                    direct_answer = "ઊંડો શ્વાસ લો અને જે બાબતો તમારા નિયંત્રણમાં છે તેના પર ધ્યાન આપો."
-                    follow_up_q = "આજનો સૌથી મહત્વનો વિષય કયો છે?"
-                else:
-                    direct_answer = "Focus strictly on controllable variables: your study micro-sprints, proper hydration, and scheduled rest."
-                    follow_up_q = "What is the single most urgent task on your study list today?"
-
-        # Priority 5: User Answers "Both" / "Yes" / "No" / Short choice
-        elif msg_l in ["both", "dono", "donoj", "yes", "haan", "ha", "yep", "no", "nahi", "na"]:
-            if "parent" in str(session.user_facts) or "parental" in topic:
-                if lang == "hi":
-                    direct_answer = "Dono ka combination kaafi exhausting ho sakta hai. Pehle exam preparation ko prioritize karte hain taaki aapka self-confidence wapas build ho."
-                    follow_up_q = "Kya hum milkar agle 2 din ka ek manageable timetable bana sakte hain?"
-                elif lang == "gu":
-                    direct_answer = "બંને બાબતો એકસાથે થકવી નાખે તેવી છે. ચાલો સરળ આયોજન બનાવીએ."
-                    follow_up_q = "શું આપણે આગામી દિવસોનું નાનું ટાઈમટેબલ બનાવીએ?"
-                else:
-                    direct_answer = "Dealing with both simultaneously is undeniably exhausting. Let's focus on building your confidence through small, clear study milestones."
-                    follow_up_q = "Would you like to outline a simple 2-day micro-plan together?"
-            else:
-                if lang == "hi":
-                    direct_answer = "Samajh gaya. Jab situation aisi ho toh sab kuch ek saath solve karne ke bajaye ek step lena best hota hai."
-                    follow_up_q = "Abhi aapke liye sabse pehla manageable step kya ho sakta hai?"
-                elif lang == "gu":
-                    direct_answer = "સમજી ગયો. એક સમયે એક પગલું લેવું શ્રેષ્ઠ છે."
-                    follow_up_q = "અત્યારે તમારા માટે સૌથી સરળ પગલું કયું રહેશે?"
-                else:
-                    direct_answer = "I understand. When facing multiple pressures, breaking things into single actionable steps prevents feeling overwhelmed."
-                    follow_up_q = "What is the single most manageable task you can tackle today?"
-
-        # Priority 6: General Initial Distress
-        elif any(w in msg_raw for w in ["i am feeling stressed", "i am stressed", "stress ho raha", "bohot tension hai", "tension me hoon", "chinta thay chhe"]):
-            if lang == "hi":
-                direct_answer = "Main sun raha hoon. Exams ka ya kisi aur cheez ka pressure kaafi overwhelming ho sakta hai."
-                follow_up_q = "Aapko sabse zyada tension kis baat ki ho rahi hai — padhai, result, ya family expectations?"
-            elif lang == "gu":
-                direct_answer = "હું ધ્યાનથી સાંભળી રહ્યો છું. તણાવ અનુભવવો સ્વાભાવિક છે."
-                follow_up_q = "તમને અત્યારે સૌથી વધુ ચિંતા શેની થઈ રહી છે — ભણવાની કે અન્ય કોઈ બાબતની?"
-            else:
-                direct_answer = "I'm listening. What has been making you feel stressed lately?"
-                follow_up_q = "Is it your upcoming exams, study workload, or something else?"
-
-        # Priority 7: Upcoming Exams / Academic Pressure
-        elif any(w in msg_raw for w in ["exam are coming", "exams are coming", "exam ka stress", "pariksha aavi rahi", "exam tension", "test near"]):
-            if lang == "hi":
-                direct_answer = "Exams ke time aisa lagna normal hai. Padhai ka load aur expectations dono ek saath aate hain."
-                follow_up_q = "Tujhe sabse zyada dikkat preparation me aa rahi hai ya result ko lekar darr lag raha hai?"
-            elif lang == "gu":
-                direct_answer = "પરીક્ષાના સમયે તણાવ આવવો સામાન્ય છે."
-                follow_up_q = "તમને તૈયારીમાં મુશ્કેલી પડે છે કે પરિણામનો ડર સતાવે છે?"
-            else:
-                direct_answer = "That makes sense. Upcoming exams create a heavy mental load."
-                follow_up_q = "Is it the amount of studying, the fear of the results, or something else that is bothering you the most?"
-
-        # Priority 8: Concentration & Focus Struggles
-        elif any(w in msg_raw for w in ["concentrate", "concentration", "focus nahi ho raha", "dhyan nahi lagta", "ekagrata", "blank out"]):
-            if lang == "hi":
-                direct_answer = "Samajh gaya. Focus na ban pana bohot frustrating hota hai, chahe hum kitna bhi try karein."
-                follow_up_q = "Jab padhne baithte ho toh kya hota hai — distraction zyada hota hai ya dimag me dusre thoughts aane lagte hain?"
-            elif lang == "gu":
-                direct_answer = "સમજી ગયો. એકાગ્રતા ન જળવાય ત્યારે ચિંતા વધુ થાય છે."
-                follow_up_q = "જ્યારે તમે વાંચવા બેસો છો ત્યારે તમારું ધ્યાન બીજે ભટકે છે કે થાક લાગે છે?"
-            else:
-                direct_answer = "Got it. Difficulty focusing is frustrating when you really want to get work done."
-                follow_up_q = "When you sit down to study, what usually happens? Do you get distracted, start worrying, or feel mentally tired?"
-
-        # Priority 9: Phone / Instagram Distraction
-        elif any(w in msg_raw for w in ["phone", "instagram", "checking my phone", "mobile", "reels", "social media"]):
-            if lang == "hi":
-                direct_answer = "Phone ka dopamine loop focus ko bohot jaldi break kar deta hai. Ek simple strategy try karte hain: phone ko doosre room me rakh kar sirf 20 minute padho, fir 5 minute ka short break lo."
-                follow_up_q = "Normally aap din me kitne ghante padhne ki koshish karte ho?"
-            elif lang == "gu":
-                direct_answer = "ફોન ધ્યાન ભટકાવવામાં મોટો ભાગ ભજવે છે. ૨૦ મિનિટ ફોન વગર વાંચો અને ૫ મિનિટ આરામ કરો."
-                follow_up_q = "સામાન્ય રીતે તમે દિવસમાં કેટલા કલાક વાંચવાનો પ્રયત્ન કરો છો?"
-            else:
-                direct_answer = "That sounds frustrating — phones are designed to pull our attention away constantly. Putting your phone in another room creates instant friction against mindless checking."
-                follow_up_q = "How many hours do you typically try to study in a day?"
-
-        # Priority 10: Study Hours (e.g. 4-5 hours, etc.)
-        elif any(w in msg_raw for w in ["4-5", "5-6", "3-4", "hours", "ghante", "ghanta", "kalak"]):
-            if lang == "hi":
-                direct_answer = "4–5 ghante ka target already kaafi solid hai. Zaroori nahi ki continuous 5 hours 100% productive ho; chhote blocks me padhna zyada effective hota hai."
-                follow_up_q = "Aapka sabse pehla exam kis subject ka scheduled hai?"
-            elif lang == "gu":
-                direct_answer = "૪-૫ કલાકનો લક્ષ્યાંક સારો છે. નાના ભાગોમાં વાંચવું વધુ અસરકારક રહે છે."
-                follow_up_q = "તમારી પહેલી પરીક્ષા કયા વિષયની છે?"
-            else:
-                direct_answer = "4–5 hours is already a significant target; the goal should be high-quality focused intervals rather than forcing continuous hours."
-                follow_up_q = "Which subject or topic is scheduled first in your exam timetable?"
-
-        # Priority 11: Specific Subject / Maths / Physics / Biology
-        elif any(w in msg_raw for w in ["math", "physics", "chemistry", "biology", "history", "english", "accounts"]):
-            if lang == "hi":
-                direct_answer = f"{message.capitalize()} me theory aur practice ka balance chahiye hota hai. Pehle easy formulas aur high-weightage chapters cover karne se confidence boost hota hai."
-                follow_up_q = "Kya aapne past year question papers ya sample papers solve karna shuru kiya hai?"
-            elif lang == "gu":
-                direct_answer = f"{message.capitalize()} માં પાયાના પ્રશ્નો પહેલા કરવાથી આત્મવિશ્વાસ વધશે."
-                follow_up_q = "શું તમે જૂના પ્રશ્નપત્રો જોયા છે?"
-            else:
-                direct_answer = f"Mathematics and Physics require heavy active problem-solving rather than passive reading. Breaking chapters into core formula sheets first helps build early momentum."
-                follow_up_q = "Have you started practicing sample papers or past year questions yet?"
-
-        # Priority 12: Parental Expectations & Family Pressure
-        elif any(w in msg_raw for w in ["parent", "parents", "expect", "marks", "95", "90", "papa", "mummy", "maa", "disappoint"]):
-            if lang == "hi":
-                direct_answer = "Exams ke saath parents ki expectations ka pressure judna bohot bhari lagta hai. Yaad rakhiye: aapki koshish aapke control me hai, unka reaction nahi."
-                follow_up_q = "Abhi aapko kis baat ka zyada darr hai — exam ka paper ya unhe disappoint karne ka?"
-            elif lang == "gu":
-                direct_answer = "માતાપિતાની ઊંચી અપેક્ષાઓ તણાવ વધારે છે. તમારી મહેનત તમારા હાથમાં છે."
-                follow_up_q = "તમને પરીક્ષાનો વધુ ડર છે કે તેમની અપેક્ષાઓનો?"
-            else:
-                direct_answer = "Earlier you mentioned exam preparation was already stressful, and now pressure from parents adds another heavy layer."
-                follow_up_q = "Which feels heavier right now — the fear of the exam itself or disappointing them?"
-
-        # Priority 13A: Racing Thoughts Before Bed
-        elif any(w in msg_raw for w in ["racing", "racing thoughts", "thoughts before bed", "dimag me thoughts"]):
-            if lang == "hi":
-                direct_answer = "Raat ko sote waqt dimag me thoughts daudna stress ka classic sign hai. Sone se 20 minute pehle ek notebook me saari chintaon ko likh dena (brain dump) bohot madad karta hai."
-                follow_up_q = "Kya aap aaj raat sone se pehle 5 minute ka brain dump journal try karna chahenge?"
-            elif lang == "gu":
-                direct_answer = "રાત્રે વિચારોનું ચક્ર ચાલવું તણાવની નિશાની છે. સૂતા પહેલા બધું કાગળ પર લખી લો."
-                follow_up_q = "શું તમે આજે રાત્રે આ અજમાવશો?"
-            else:
-                direct_answer = "Racing thoughts before bed are exhausting. Try a quick 5-minute brain dump in a notebook before sleeping so your mind doesn't feel obligated to hold onto everything overnight."
-                follow_up_q = "Does the worrying mostly happen when you're trying to fall asleep, or does it continue throughout the day?"
-
-        # Priority 13B: Sleep Issues & Insomnia
-        elif any(w in msg_raw for w in ["sleep", "can't sleep", "insomnia", "neend", "night", "bed"]):
-            if lang == "hi":
-                direct_answer = "Stress aur neend ka aapas me gehra rishta hai. Sone se 30 minute pehle screen band karna aur kamre ko thanda rakhna sleep quality ko kaafi improve karta hai."
-                follow_up_q = "Aap aam taur par kitne baje sone ki koshish karte hain?"
-            elif lang == "gu":
-                direct_answer = "તણાવ ઊંઘની ગુણવત્તા બગાડે છે. સૂતા પહેલા સ્ક્રીનથી દૂર રહો."
-                follow_up_q = "તમે સામાન્ય રીતે કેટલા વાગ્યે સૂવા જાઓ છો?"
-            else:
-                direct_answer = "Sleep issues and daytime stress create a frustrating feedback loop. A consistent 30-minute digital sunset before bed gives your nervous system time to settle down."
-                follow_up_q = "What time do you usually get into bed, and how long does it take to fall asleep?"
-
-        # Priority 14: Calming / Relief / Positive Feedback
-        elif any(w in msg_raw for w in ["calmer", "calm", "thank you", "thanks", "accha laga", "shukriya", "aabhar", "relief", "better"]):
+        # Scenario: Positive Feedback / Calmer / Thanks
+        elif any(w in msg_clean for w in ["much calmer", "calmer", "thank you", "thanks", "accha laga", "shukriya", "relief", "better now"]):
             if lang == "hi":
                 direct_answer = "Yeh sunkar bohot accha laga. Aapne already pehla step le liya hai apne stress ko acknowledge karke."
                 follow_up_q = "Kya aap study start karne se pehle ek 2-minute relaxation breathing exercise karna chahenge?"
@@ -313,7 +151,151 @@ class ConversationEngine:
                 direct_answer = "I am really glad to hear that. Taking a moment to slow down your breathing and gain perspective is a powerful tool."
                 follow_up_q = "How do your energy and focus feel right now?"
 
-        # Priority 15: Fallback Context-Rich Response
+        # Scenario: Guided Breathing Request
+        elif any(w in msg_clean for w in ["quick breathing", "breathing exercise", "guide a quick", "saans", "shant karwao"]):
+            if lang == "hi":
+                direct_answer = "Chaliye ek 4-4-4 Box Breathing karte hain: 4 second saans andar lijiye... 4 second rokiye... aur 4 second me dheere se chodiye."
+                follow_up_q = "Kya aap thoda relax aur calm feel kar rahe hain?"
+            elif lang == "gu":
+                direct_answer = "ચાલો ૪ સેકન્ડ ઊંડો શ્વાસ લઈએ... ૪ સેકન્ડ રોકો... અને ૪ સેકન્ડમાં બહાર કાઢો."
+                follow_up_q = "શું તમે થોડી શાંતિ અનુભવી રહ્યા છો?"
+            else:
+                direct_answer = "Let's do a simple 4-4-4 Box Breathing: Inhale slowly for 4 seconds... hold for 4 seconds... and gently exhale for 4 seconds."
+                follow_up_q = "How does your body feel after that breath?"
+
+        # Scenario: Racing Thoughts Before Bed
+        elif any(w in msg_clean for w in ["mind keeps racing", "racing thoughts", "thoughts before bed", "dimag me thoughts", "racing"]):
+            if lang == "hi":
+                direct_answer = "Raat ko sote waqt dimag me thoughts daudna stress ka classic sign hai. Sone se 20 minute pehle ek notebook me saari chintaon ko likh dena (brain dump) bohot madad karta hai."
+                follow_up_q = "Kya aap aaj raat sone se pehle 5 minute ka brain dump journal try karna chahenge?"
+            elif lang == "gu":
+                direct_answer = "રાત્રે વિચારોનું ચક્ર ચાલવું તણાવની નિશાની છે. સૂતા પહેલા બધું કાગળ પર લખી લો."
+                follow_up_q = "શું તમે આજે રાત્રે આ અજમાવશો?"
+            else:
+                direct_answer = "Racing thoughts before bed are exhausting. Try a quick 5-minute brain dump in a notebook before sleeping so your mind doesn't feel obligated to hold onto everything overnight."
+                follow_up_q = "Does the worrying mostly happen when you're trying to fall asleep, or does it continue throughout the day?"
+
+        # Scenario: Sleep Struggle / Insomnia
+        elif any(w in msg_clean for w in ["struggle to sleep", "sleep at night", "can't sleep", "insomnia", "neend", "night"]):
+            if lang == "hi":
+                direct_answer = "Stress aur neend ka aapas me gehra rishta hai. Sone se 30 minute pehle screen band karna aur kamre ko thanda rakhna sleep quality ko kaafi improve karta hai."
+                follow_up_q = "Aap aam taur par kitne baje sone ki koshish karte hain?"
+            elif lang == "gu":
+                direct_answer = "તણાવ ઊંઘની ગુણવત્તા બગાડે છે. સૂતા પહેલા સ્ક્રીનથી દૂર રહો."
+                follow_up_q = "તમે સામાન્ય રીતે કેટલા વાગ્યે સૂવા જાઓ છો?"
+            else:
+                direct_answer = "Sleep issues and daytime stress create a frustrating feedback loop. A consistent 30-minute digital sunset before bed gives your nervous system time to settle down."
+                follow_up_q = "What time do you usually get into bed, and how long does it take to fall asleep?"
+
+        # Scenario: Direct How-to / "What should I do when I can't concentrate?"
+        elif any(w in msg_clean for w in ["what should i do", "how can i", "kya karun", "shu karu", "kaise karu"]):
+            if lang == "hi":
+                direct_answer = "Sabse pehle phone ko doosre room me rakhein aur sirf 20-25 minute ka ek Pomodoro block start karein. Agar focus break ho toh 2 minute ka deep breathing break lein."
+                follow_up_q = "Kya aap agla 25-minute focus session try karne ke liye ready hain?"
+            elif lang == "gu":
+                direct_answer = "૨૦-૨૫ મિનિટનો પોમોડોરો બ્લોક બનાવો અને ફોન બીજા રૂમમાં મૂકો."
+                follow_up_q = "શું તમે ૨૫ મિનિટ વાંચવા માટે તૈયાર છો?"
+            else:
+                direct_answer = "Try studying for just 20–25 minutes without your phone, then take a short break. If concentration is still difficult, we can figure out what's making it harder for you."
+                follow_up_q = "Is it mainly distraction or anxiety?"
+
+        # Scenario: Choice / "Both" / "Yes" / "No"
+        elif msg_clean in ["both", "dono", "donoj", "yes", "haan", "ha", "yep", "no", "nahi", "na"]:
+            if lang == "hi":
+                direct_answer = "Dono ka combination kaafi exhausting ho sakta hai. Pehle exam preparation ko prioritize karte hain taaki aapka self-confidence wapas build ho."
+                follow_up_q = "Kya hum milkar agle 2 din ka ek manageable timetable bana sakte hain?"
+            elif lang == "gu":
+                direct_answer = "બંને બાબતો એકસાથે થકવી નાખે તેવી છે. ચાલો સરળ આયોજન બનાવીએ."
+                follow_up_q = "શું આપણે આગામી દિવસોનું નાનું ટાઈમટેબલ બનાવીએ?"
+            else:
+                direct_answer = "Dealing with both simultaneously is undeniably exhausting. Let's focus on building your confidence through small, clear study milestones."
+                follow_up_q = "Would you like to outline a simple 2-day micro-plan together?"
+
+        # Scenario: Parental Expectations
+        elif any(w in msg_clean for w in ["parent", "parents", "expect very high", "expect", "marks", "95", "90", "papa", "mummy", "maa", "disappoint"]):
+            if lang == "hi":
+                direct_answer = "Exams ke saath parents ki expectations ka pressure judna bohot bhari lagta hai. Yaad rakhiye: aapki koshish aapke control me hai, unka reaction nahi."
+                follow_up_q = "Abhi aapko kis baat ka zyada darr hai — exam ka paper ya unhe disappoint karne ka?"
+            elif lang == "gu":
+                direct_answer = "માતાપિતાની ઊંચી અપેક્ષાઓ તણાવ વધારે છે. તમારી મહેનત તમારા હાથમાં છે."
+                follow_up_q = "તમને પરીક્ષાનો વધુ ડર છે કે તેમની અપેક્ષાઓનો?"
+            else:
+                direct_answer = "Earlier you mentioned exam preparation was already stressful, and now pressure from parents adds another heavy layer."
+                follow_up_q = "Which feels heavier right now — the fear of the exam itself or disappointing them?"
+
+        # Scenario: Specific Subjects (Maths / Physics)
+        elif any(w in msg_clean for w in ["mathematics", "math", "physics", "chemistry", "biology", "accounts"]):
+            if lang == "hi":
+                direct_answer = "Maths aur Physics me active problem-solving bohot zaroori hoti hai. Pehle core formula sheet banana aur high-weightage topics cover karna instant confidence deta hai."
+                follow_up_q = "Kya aapne past year question papers solve karna shuru kiya hai?"
+            elif lang == "gu":
+                direct_answer = "ગણિત અને ભૌતિકશાસ્ત્રમાં પાયાના સૂત્રો પહેલા કરવાથી આત્મવિશ્વાસ વધશે."
+                follow_up_q = "શું તમે જૂના પ્રશ્નપત્રો જોયા છે?"
+            else:
+                direct_answer = "Mathematics and Physics require heavy active problem-solving rather than passive reading. Breaking chapters into core formula sheets first helps build early momentum."
+                follow_up_q = "Have you started practicing sample papers or past year questions yet?"
+
+        # Scenario: Study Hours (4-5 hours)
+        elif any(w in msg_clean for w in ["45 hours", "45", "56", "34", "hours", "ghante", "ghanta", "kalak"]):
+            if lang == "hi":
+                direct_answer = "4–5 ghante ka target already kaafi solid hai. Zaroori nahi ki continuous 5 hours 100% productive ho; chhote blocks me padhna zyada effective hota hai."
+                follow_up_q = "Aapka sabse pehla exam kis subject ka scheduled hai?"
+            elif lang == "gu":
+                direct_answer = "૪-૫ કલાકનો લક્ષ્યાંક સારો છે. નાના ભાગોમાં વાંચવું વધુ અસરકારક રહે છે."
+                follow_up_q = "તમારી પહેલી પરીક્ષા કયા વિષયની છે?"
+            else:
+                direct_answer = "4–5 hours is already a significant target; the goal should be high-quality focused intervals rather than forcing continuous hours."
+                follow_up_q = "Which subject or topic is scheduled first in your exam timetable?"
+
+        # Scenario: Phone Distraction
+        elif any(w in msg_clean for w in ["checking my phone", "phone", "instagram", "reels", "mobile"]):
+            if lang == "hi":
+                direct_answer = "Phone ka dopamine loop focus ko bohot jaldi break kar deta hai. Ek simple strategy try karte hain: phone ko doosre room me rakh kar sirf 20 minute padho, fir 5 minute ka short break lo."
+                follow_up_q = "Normally aap din me kitne ghante padhne ki koshish karte ho?"
+            elif lang == "gu":
+                direct_answer = "ફોન ધ્યાન ભટકાવવામાં મોટો ભાગ ભજવે છે. ૨૦ મિનિટ ફોન વગર વાંચો અને ૫ મિનિટ આરામ કરો."
+                follow_up_q = "સામાન્ય રીતે તમે દિવસમાં કેટલા કલાક વાંચવાનો પ્રયત્ન કરો છો?"
+            else:
+                direct_answer = "That sounds frustrating — phones are designed to pull our attention away constantly. Putting your phone in another room creates instant friction against mindless checking."
+                follow_up_q = "How many hours do you typically try to study in a day?"
+
+        # Scenario: Difficulty Concentrating
+        elif any(w in msg_clean for w in ["cant concentrate", "concentrate", "concentration", "dhyan nahi", "focus nahi"]):
+            if lang == "hi":
+                direct_answer = "Samajh gaya. Focus na ban pana bohot frustrating hota hai, chahe hum kitna bhi try karein."
+                follow_up_q = "Jab padhne baithte ho toh kya hota hai — distraction zyada hota hai ya dimag me dusre thoughts aane lagte hain?"
+            elif lang == "gu":
+                direct_answer = "સમજી ગયો. એકાગ્રતા ન જળવાય ત્યારે ચિંતા વધુ થાય છે."
+                follow_up_q = "જ્યારે તમે વાંચવા બેસો છો ત્યારે તમારું ધ્યાન બીજે ભટકે છે કે થાક લાગે છે?"
+            else:
+                direct_answer = "Got it. Difficulty focusing is frustrating when you really want to get work done."
+                follow_up_q = "When you sit down to study, what usually happens? Do you get distracted, start worrying, or feel mentally tired?"
+
+        # Scenario: Upcoming Exams
+        elif any(w in msg_clean for w in ["exams are coming", "exam are coming", "exam", "pariksha", "test"]):
+            if lang == "hi":
+                direct_answer = "Exams ke time aisa lagna normal hai. Padhai ka load aur expectations dono ek saath aate hain."
+                follow_up_q = "Tujhe sabse zyada dikkat preparation me aa rahi hai ya result ko lekar darr lag raha hai?"
+            elif lang == "gu":
+                direct_answer = "પરીક્ષાના સમયે તણાવ આવવો સામાન્ય છે."
+                follow_up_q = "તમને તૈયારીમાં મુશ્કેલી પડે છે કે પરિણામનો ડર સતાવે છે?"
+            else:
+                direct_answer = "That makes sense. Upcoming exams create a heavy mental load."
+                follow_up_q = "Is it the amount of studying, the fear of the results, or something else that is bothering you the most?"
+
+        # Scenario: Initial Distress / "I am feeling stressed"
+        elif any(w in msg_clean for w in ["i am feeling stressed", "i am stressed", "stress ho raha", "bohot tension"]):
+            if lang == "hi":
+                direct_answer = "Main sun raha hoon. Exams ka ya kisi aur cheez ka pressure kaafi overwhelming ho sakta hai."
+                follow_up_q = "Aapko sabse zyada tension kis baat ki ho rahi hai — padhai, result, ya family expectations?"
+            elif lang == "gu":
+                direct_answer = "હું ધ્યાનથી સાંભળી રહ્યો છું. તણાવ અનુભવવો સ્વાભાવિક છે."
+                follow_up_q = "તમને અત્યારે સૌથી વધુ ચિંતા શેની થઈ રહી છે — ભણવાની કે અન્ય કોઈ બાબતની?"
+            else:
+                direct_answer = "I'm listening. What has been making you feel stressed lately?"
+                follow_up_q = "Is it your upcoming exams, study workload, or something else?"
+
+        # General Fallback
         else:
             if lang == "hi":
                 direct_answer = f"Main samajh raha hoon. {message.strip()} ke baare me baat karna zaroori tha."
@@ -322,10 +304,9 @@ class ConversationEngine:
                 direct_answer = f"હું સમજી રહ્યો છું. {message.strip()} વિશે વાત કરવી ઉપયોગી છે."
                 follow_up_q = "આની તમારી દિનચર્યા પર શું અસર થઈ રહી છે?"
             else:
-                direct_answer = f"I hear you. Thank you for sharing that."
+                direct_answer = f"I hear what you're sharing regarding '{message.strip()}'. Giving voice to what you are experiencing is often the first step toward finding relief."
                 follow_up_q = "How is this currently impacting your focus and daily energy?"
 
-        # Combine into complete conversational turn
         final_response = f"{direct_answer} {follow_up_q}".strip()
         
         session.add_turn(
@@ -356,4 +337,3 @@ class ConversationEngine:
         }
 
 conversation_engine = ConversationEngine()
-

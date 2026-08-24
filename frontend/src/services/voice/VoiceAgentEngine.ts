@@ -470,13 +470,43 @@ export class VoiceSessionManager {
 
   private getFallbackReply(text: string): string {
     const tLower = text.toLowerCase();
-    if (this.language.startsWith('hi') || tLower.includes('tension') || tLower.includes('hai')) {
-      return "Main samajh raha hoon ki abhi kafi stress feel ho raha hai. Pehle ek gehri saans lete hain aur ek-ek step karke solve karte hain.";
+    
+    // Academic / Exam
+    if (tLower.includes('exam') || tLower.includes('padhai') || tLower.includes('study') || tLower.includes('fail') || tLower.includes('pariksha')) {
+      if (this.language.startsWith('hi') || tLower.includes('hai')) {
+        return "Exams ka pressure kafi natural hai. Saare syllabus ko ek saath sochne ke bajaye agle 30 minute ka ek focus sprint karte hain. Aapka sabse pehla paper kaunsa hai?";
+      }
+      return "Exam stress can feel intense, but breaking your study into 25-minute focus blocks makes it manageable. Which subject is scheduled first for you?";
     }
+    
+    // Focus / Distraction
+    if (tLower.includes('focus') || tLower.includes('dhyan') || tLower.includes('distract') || tLower.includes('phone')) {
+      if (this.language.startsWith('hi') || tLower.includes('hai')) {
+        return "Jab stress hota hai to dhyan bhatakna aam baat hai. Phone ko thoda door rakh kar ek chapter open karein. Kya concentration me zyada dikkat aa rahi hai?";
+      }
+      return "Difficulty concentrating is a natural response to mental fatigue. Setting aside your phone for 20 minutes creates instant focus. What is the main task you want to complete right now?";
+    }
+    
+    // Breathing / Calm
+    if (tLower.includes('breathe') || tLower.includes('saans') || tLower.includes('calm') || tLower.includes('relax')) {
+      if (this.language.startsWith('hi') || tLower.includes('hai')) {
+        return "Chaliye hum milkar 4 second saans andar lete hain... 4 second rokte hain... aur 4 second me chhodte hain. Kya aap thoda better feel kar rahe hain?";
+      }
+      return "Let's take a slow grounding breath together: Inhale for 4 seconds, hold for 4, and release smoothly for 4. How does your chest and breathing feel now?";
+    }
+    
+    // Default Hindi
+    if (this.language.startsWith('hi') || tLower.includes('hai') || tLower.includes('kya')) {
+      return "Main aapki baat dhyan se sun raha hoon. Is situation me thoda pause lena zaroori hai. Aapko abhi sabse zyada kis cheez me support chahiye?";
+    }
+    
+    // Default Gujarati
     if (this.language.startsWith('gu') || tLower.includes('chhe') || tLower.includes('chinta')) {
-      return "હું સમજી શકું છું કે તમે તણાવ અનુભવી રહ્યા છો. ચાલો એક ઊંડો શ્વાસ લઈએ અને સરળ રીતે શરૂઆત કરીએ.";
+      return "હું તમારી વાત સમજી રહ્યો છું. એક સમયે એક નાનું પગલું લેવું શ્રેષ્ઠ છે. અત્યારે તમને શેમાં સૌથી વધુ ચિંતા છે?";
     }
-    return "I hear you clearly. When facing stressful demands, taking a single grounding breath and tackling one small task creates immediate relief.";
+    
+    // Default English
+    return "I am right here with you. When multiple demands pile up, breaking them into single actionable steps creates immediate relief. What feels like the most urgent priority on your mind right now?";
   }
 
   // ==========================================

@@ -174,11 +174,17 @@ const AssistantPage: React.FC = () => {
                   </p>
                   <div className="flex flex-wrap gap-2 pt-1">
                     <a 
-                      href="tel:988" 
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-100 dark:bg-red-500/20 hover:bg-red-200 dark:hover:bg-red-500/30 border border-red-200 dark:border-red-500/40 text-red-700 dark:text-red-200 rounded-lg text-xs font-medium transition-colors"
+                      href="tel:14416" 
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-semibold transition-colors shadow-sm"
                     >
                       <PhoneCall className="w-3.5 h-3.5" />
-                      <span>{t('assistant.call_988', 'Call 988')}</span>
+                      <span>Call Tele-MANAS (14416)</span>
+                    </a>
+                    <a 
+                      href="/helplines" 
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-100 dark:bg-red-500/20 hover:bg-red-200 dark:hover:bg-red-500/30 border border-red-200 dark:border-red-500/40 text-red-700 dark:text-red-200 rounded-xl text-xs font-medium transition-colors"
+                    >
+                      <span>View All Verified Helplines 🆘</span>
                     </a>
                   </div>
                 </motion.div>
