@@ -67,6 +67,59 @@ def call_groq_api(api_key: str, messages: List[Dict[str, str]], current_message:
         print(f"[ConversationEngine] Groq API call failed: {e}")
         return None
 
+def call_huggingface_api(api_key: str, messages: List[Dict[str, str]], current_message: str, user_facts: List[str], lang: str, stress_score: float) -> Optional[str]:
+    """Call Hugging Face Inference API with Llama / Qwen models."""
+    if not api_key or not api_key.strip():
+        return None
+        
+    try:
+        from huggingface_hub import InferenceClient
+        client = InferenceClient(api_key=api_key.strip())
+        
+        system_prompt = (
+            f"You are Shield AI, an emotionally intelligent, compassionate mental health companion inside MindShield AI. "
+            f"Current user live stress index is estimated at {stress_score}/100. "
+            f"Known user emotional facts: {', '.join(user_facts) if user_facts else 'general emotional check-in'}. "
+            "Guidelines:\n"
+            "1. Respond directly and warmly in 2-3 sentences. NEVER use robotic templates.\n"
+            "2. Match the user's language (Hindi, Hinglish, English, Gujarati) naturally and respectfully.\n"
+            "3. ALWAYS end with ONE caring, natural follow-up question.\n"
+            "4. Validate their emotions deeply (especially regarding family, attention, loneliness, or pressure).\n"
+            "5. Never give clinical diagnoses."
+        )
+        
+        chat_msgs = [{"role": "system", "content": system_prompt}]
+        for m in messages[-6:]:
+            chat_msgs.append({"role": m.get("role", "user"), "content": m.get("content", "")})
+        chat_msgs.append({"role": "user", "content": current_message})
+        
+        # Try primary models
+        models_to_try = [
+            "Qwen/Qwen2.5-72B-Instruct",
+            "meta-llama/Llama-3.2-3B-Instruct",
+            "meta-llama/Llama-3.1-8B-Instruct",
+            "mistralai/Mistral-7B-Instruct-v0.3"
+        ]
+        
+        for model in models_to_try:
+            try:
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=chat_msgs,
+                    max_tokens=250,
+                    temperature=0.75
+                )
+                text = response.choices[0].message.content.strip()
+                if text:
+                    return text
+            except Exception:
+                continue
+                
+    except Exception as e:
+        print(f"[ConversationEngine] HuggingFace API call error: {e}")
+        return None
+    return None
+
 
 def call_gemini_api(api_key: str, messages: List[Dict[str, str]], current_message: str, user_facts: List[str], lang: str) -> Optional[str]:
     """Call Google Gemini API via REST."""
@@ -489,22 +542,28 @@ class ConversationEngine:
         session.user_facts = self._extract_facts(message, session.user_facts)
         stress_score = self._calculate_stress(message, session.stress_trajectory)
 
-        # 1. Try Groq API first (if GROQ_API_KEY is present)
-        groq_key = os.getenv("GROQ_API_KEY", "")
-        ai_response = None
-        
+        from app.core.config import settings
         history_msgs = [{"role": item["role"], "content": item["content"]} for item in session.history[-6:]]
-        
-        if groq_key and len(groq_key.strip()) > 10:
-            ai_response = call_groq_api(groq_key, history_msgs, message, session.user_facts, lang)
+        ai_response = None
 
-        # 2. Try Gemini API
+        # 1. Try Hugging Face API first (with Llama / Qwen models)
+        hf_key = settings.HUGGINGFACE_API_KEY or os.getenv("HUGGINGFACE_API_KEY", "") or os.getenv("HF_API_KEY", "")
+        if hf_key and len(hf_key.strip()) > 10:
+            ai_response = call_huggingface_api(hf_key, history_msgs, message, session.user_facts, lang, stress_score)
+
+        # 2. Try Groq API (if present)
         if not ai_response:
-            api_key = os.getenv("GEMINI_API_KEY", "") or os.getenv("AI_API_KEY", "")
+            groq_key = settings.GROQ_API_KEY or os.getenv("GROQ_API_KEY", "")
+            if groq_key and len(groq_key.strip()) > 10:
+                ai_response = call_groq_api(groq_key, history_msgs, message, session.user_facts, lang)
+
+        # 3. Try Gemini API
+        if not ai_response:
+            api_key = settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY", "") or settings.AI_API_KEY or os.getenv("AI_API_KEY", "")
             if api_key and len(api_key.strip()) > 10:
                 ai_response = call_gemini_api(api_key, history_msgs, message, session.user_facts, lang)
 
-        # 3. Strict Category-Locked Contextual Fallback
+        # 4. Strict Category-Locked Contextual Fallback
         if not ai_response:
             intent_pool = RESPONSES_BY_INTENT.get(intent, RESPONSES_BY_INTENT["general"])
             responses = intent_pool.get(lang, intent_pool.get("en", []))
