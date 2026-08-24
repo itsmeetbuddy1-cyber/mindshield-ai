@@ -7,6 +7,7 @@ class Settings:
     AI_MODE: str = os.getenv("AI_MODE", "mock")
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./mindshield.db")
     AI_API_KEY: str = os.getenv("AI_API_KEY", "")
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "") or os.getenv("AI_API_KEY", "")
     GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")
     GOOGLE_CLIENT_SECRET: str = os.getenv("GOOGLE_CLIENT_SECRET", "")
     SAFETY_KEYWORDS: list[str] = [
