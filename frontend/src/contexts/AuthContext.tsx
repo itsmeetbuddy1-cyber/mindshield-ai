@@ -17,6 +17,9 @@ interface AuthContextType {
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
   signup: (name: string, email: string, password: string) => Promise<void>
+  loginWithGoogle: (data: { credential?: string; email?: string; name?: string }) => Promise<void>
+  forgotPassword: (email: string) => Promise<any>
+  resetPassword: (email: string, token: string, newPassword: string) => Promise<any>
   logout: () => void
   updateProfile: (data: { display_name?: string; preferred_language?: string }) => Promise<void>
 }
@@ -75,6 +78,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(newUser)
   }
 
+  const loginWithGoogle = async (data: { credential?: string; email?: string; name?: string }) => {
+    const res = await api.post('/auth/google', data)
+    const { token: newToken, user: newUser } = res.data
+    localStorage.setItem('mindshield-token', newToken)
+    setToken(newToken)
+    setUser(newUser)
+  }
+
+  const forgotPassword = async (email: string) => {
+    const res = await api.post('/auth/forgot-password', { email })
+    return res.data
+  }
+
+  const resetPassword = async (email: string, resetToken: string, newPassword: string) => {
+    const res = await api.post('/auth/reset-password', { email, token: resetToken, new_password: newPassword })
+    return res.data
+  }
+
   const logout = () => {
     localStorage.removeItem('mindshield-token')
     setToken(null)
@@ -89,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{
       user, token, isAuthenticated: !!user, isLoading,
-      login, signup, logout, updateProfile
+      login, signup, loginWithGoogle, forgotPassword, resetPassword, logout, updateProfile
     }}>
       {children}
     </AuthContext.Provider>

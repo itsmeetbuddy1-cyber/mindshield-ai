@@ -42,6 +42,7 @@ function App() {
               <Route path="/admin" element={<HostPortalPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/signup" element={<SignupPage />} />
+              <Route path="/auth" element={<LoginPage />} />
 
               {/* Main app routes with sidebar layout */}
               <Route element={<MainLayout />}>

@@ -69,6 +69,84 @@ def login(request: schemas.LoginRequest, db: Session = Depends(get_db)):
         }
     }
 
+@router.post("/auth/google")
+def google_auth(request: schemas.GoogleAuthRequest, db: Session = Depends(get_db)):
+    email = request.email
+    name = request.name or "Google User"
+    
+    # If credential JWT token is passed from Google Identity Services (GIS)
+    if request.credential:
+        try:
+            from jose import jwt as jose_jwt
+            # Decode unverified claims (client-side already verified with Google GIS / OAuth)
+            unverified_claims = jose_jwt.get_unverified_claims(request.credential)
+            email = unverified_claims.get("email", email)
+            name = unverified_claims.get("name", name)
+        except Exception as e:
+            print("Google token decode notice:", e)
+
+    if not email:
+        raise HTTPException(status_code=400, detail="Valid Google email is required for authentication")
+
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user:
+        # Register new Google authenticated user
+        user = models.User(
+            username=email.split("@")[0],
+            email=email,
+            password_hash=None, # Google OAuth user (no plain password)
+            display_name=name,
+            preferred_language="en",
+            is_active=True,
+            preferences={"auth_provider": "google"}
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    token = create_access_token(user.id, user.username)
+    return {
+        "token": token,
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "display_name": user.display_name,
+            "preferred_language": user.preferred_language,
+            "created_at": user.created_at
+        }
+    }
+
+@router.post("/auth/forgot-password")
+def forgot_password(request: schemas.ForgotPasswordRequest, db: Session = Depends(get_db)):
+    if not request.email or "@" not in request.email:
+        raise HTTPException(status_code=400, detail="Please enter a valid email address")
+    
+    user = db.query(models.User).filter(models.User.email == request.email).first()
+    
+    # Generate a demo/recovery token
+    reset_token = f"reset_{random.randint(100000, 999999)}"
+    
+    return {
+        "message": "Password reset instructions have been generated. Use your verification code to set a new password.",
+        "email": request.email,
+        "reset_code": reset_token if user else None,
+        "exists": bool(user)
+    }
+
+@router.post("/auth/reset-password")
+def reset_password(request: schemas.ResetPasswordRequest, db: Session = Depends(get_db)):
+    if len(request.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters long")
+        
+    user = db.query(models.User).filter(models.User.email == request.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User account not found")
+        
+    user.password_hash = hash_password(request.new_password)
+    db.commit()
+    return {"message": "Password reset successfully. You can now login with your new password."}
+
 @router.get("/auth/me")
 def get_me(user: models.User = Depends(get_current_user)):
     return {

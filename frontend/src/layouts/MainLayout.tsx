@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import toast from 'react-hot-toast';
 import { 
   LayoutDashboard, 
   MessageCircle, 
@@ -26,6 +27,7 @@ import { useTheme } from '../contexts/ThemeContext';
 
 const MainLayout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { t, i18n } = useTranslation();
   const { user, logout } = useAuth();
   const { theme, setTheme } = useTheme();
@@ -107,26 +109,36 @@ const MainLayout = () => {
 
           <div className="pt-4 mt-4 border-t border-gray-200 dark:border-slate-800/60">
              {user ? (
-               <div className="space-y-3">
-                 <div className="flex items-center gap-3 px-4 py-2">
-                   <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-300 font-bold">
-                     {(user.display_name || user.username || 'U')[0]}
-                   </div>
-                   <div className="flex flex-col">
-                     <span className="text-sm font-medium text-gray-800 dark:text-gray-200">Hello, {user.display_name || user.username || 'User'}</span>
-                   </div>
-                 </div>
-                 <button onClick={logout} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all">
-                   <LogOut className="w-5 h-5" />
-                   <span>Logout</span>
-                 </button>
-               </div>
-             ) : (
-               <Link to="/login" className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-all">
-                 <LogIn className="w-5 h-5" />
-                 <span>Login / Sign Up</span>
-               </Link>
-             )}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 px-4 py-2">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-300 font-bold">
+                      {(user.display_name || user.username || 'U')[0].toUpperCase()}
+                    </div>
+                    <div className="flex flex-col overflow-hidden">
+                      <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                        {user.display_name || user.username || 'User'}
+                      </span>
+                      <span className="text-[11px] text-gray-400 truncate">{user.email || 'Authenticated'}</span>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      logout();
+                      toast.success('Logged out successfully');
+                      navigate('/');
+                    }} 
+                    className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all font-medium"
+                  >
+                    <LogOut className="w-5 h-5" />
+                    <span>Logout</span>
+                  </button>
+                </div>
+              ) : (
+                <Link to="/login" className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-all font-medium">
+                  <LogIn className="w-5 h-5" />
+                  <span>Login / Sign Up</span>
+                </Link>
+              )}
           </div>
         </nav>
       </aside>

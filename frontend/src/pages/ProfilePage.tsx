@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { User, Settings, Shield, Bell, Camera, Mic, LogOut, Check } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import toast from 'react-hot-toast';
 
 const ProfilePage: React.FC = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [cameraEnabled, setCameraEnabled] = useState(true);
   const [micEnabled, setMicEnabled] = useState(true);
@@ -28,7 +31,11 @@ const ProfilePage: React.FC = () => {
             <p className="text-gray-500 dark:text-slate-400 text-sm">{user?.email || 'Not logged in'}</p>
             
             <button 
-              onClick={logout}
+              onClick={() => {
+                logout();
+                toast.success('Signed out successfully');
+                navigate('/');
+              }}
               className="mt-6 w-full py-2.5 px-4 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
             >
               <LogOut className="w-4 h-4" /> {t('profile.logout', 'Sign Out')}

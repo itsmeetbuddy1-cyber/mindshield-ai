@@ -1,9 +1,13 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
-import { Shield, Brain, Activity, Heart, Lock, ArrowRight, Eye, Sparkles, User, Mail, Users } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Shield, Brain, Activity, Heart, Lock, ArrowRight, Eye, Sparkles, User, Mail, Users, LogIn, LayoutDashboard } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 const LandingPage = () => {
+  const { isAuthenticated, user } = useAuth();
+  const navigate = useNavigate();
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: { 
@@ -27,16 +31,33 @@ const LandingPage = () => {
           </div>
           <span className="text-xl font-bold text-white tracking-tight">MindShield AI</span>
         </div>
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4">
           <Link to="/judge" className="text-sm font-medium text-slate-300 hover:text-white transition-colors hidden md:block">
             Judge Dashboard
           </Link>
           <Link 
             to="/demo" 
-            className="text-sm font-semibold bg-white/10 hover:bg-white/20 px-5 py-2.5 rounded-full backdrop-blur-md transition-all border border-white/10"
+            className="text-sm font-semibold bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full backdrop-blur-md transition-all border border-white/10"
           >
             Launch Demo
           </Link>
+          {isAuthenticated ? (
+            <Link 
+              to="/dashboard" 
+              className="text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-full shadow-lg shadow-blue-500/20 transition-all flex items-center gap-1.5"
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              <span>Dashboard ({user?.display_name || user?.username || 'User'})</span>
+            </Link>
+          ) : (
+            <Link 
+              to="/login" 
+              className="text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-full shadow-lg shadow-blue-500/20 transition-all flex items-center gap-1.5"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>Sign In</span>
+            </Link>
+          )}
         </div>
       </nav>
 
@@ -82,15 +103,22 @@ const LandingPage = () => {
             className="flex flex-col sm:flex-row items-center justify-center gap-4"
           >
             <Link 
-              to="/onboarding"
+              to={isAuthenticated ? "/dashboard" : "/login?mode=signup"}
               className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white rounded-full font-semibold text-lg shadow-[0_0_30px_rgba(59,130,246,0.3)] transition-all flex items-center justify-center gap-2"
             >
-              Start Real-Time Check
+              <span>Get Started</span>
               <ArrowRight className="w-5 h-5" />
+            </Link>
+            <Link 
+              to={isAuthenticated ? "/dashboard" : "/login?mode=login"}
+              className="w-full sm:w-auto px-8 py-4 bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-white rounded-full font-semibold text-lg backdrop-blur-md transition-all flex items-center justify-center gap-2"
+            >
+              <LogIn className="w-5 h-5 text-cyan-400" />
+              <span>Sign In</span>
             </Link>
             <a 
               href="#how-it-works"
-              className="w-full sm:w-auto px-8 py-4 bg-slate-900/50 hover:bg-slate-800 border border-slate-800 text-white rounded-full font-semibold text-lg backdrop-blur-md transition-all flex items-center justify-center"
+              className="w-full sm:w-auto px-6 py-4 text-slate-400 hover:text-white font-medium text-base transition-colors flex items-center justify-center"
             >
               Explore How It Works
             </a>

@@ -47,6 +47,20 @@ class LoginRequest(BaseModel):
     email: str
     password: str
 
+class GoogleAuthRequest(BaseModel):
+    credential: Optional[str] = None
+    email: Optional[str] = None
+    name: Optional[str] = None
+    google_id: Optional[str] = None
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    email: str
+    token: str
+    new_password: str
+
 class UserProfileResponse(BaseSchema):
     id: int
     username: Optional[str] = None
