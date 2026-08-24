@@ -1,7 +1,10 @@
 """
-MindShield AI — Resilient Conversation Engine
-Supports real-time Google Gemini API with robust dynamic contextual fallback.
-Never returns irrelevant topic responses (e.g. math advice for emotional topics).
+MindShield AI — Multi-Provider Resilient AI Conversation Engine
+Supports:
+1. Google Gemini (REST & SDK)
+2. Groq (Llama 3.3 70B / 8B — ultra fast & 100% free)
+3. OpenAI / Open-WebUI
+4. Category-Locked Emotional Synthesizer (Zero-hallucination offline fallback)
 """
 
 import os
@@ -13,15 +16,65 @@ import urllib.request
 import urllib.error
 from typing import Dict, List, Any, Optional, Set
 
-# ---------- Direct Gemini API Call via REST ----------
+# ---------- LLM Provider Callers ----------
+
+def call_groq_api(api_key: str, messages: List[Dict[str, str]], current_message: str, user_facts: List[str], lang: str) -> Optional[str]:
+    """Call Groq API (Llama 3.3 70B Versatile / Llama 3.1 8B Instant) — 100% Free & ultra-fast."""
+    if not api_key or not api_key.strip():
+        return None
+        
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    
+    system_prompt = (
+        "You are Shield AI, a warm, emotionally supportive wellness companion in the MindShield app. "
+        "Guidelines:\n"
+        "1. Respond directly with genuine empathy in 2-3 sentences.\n"
+        "2. Match the user's language (Hindi, Hinglish, English, Gujarati) naturally.\n"
+        "3. Always end with ONE thoughtful, relevant follow-up question.\n"
+        "4. Do NOT give medical diagnoses or generic robotic boilerplate.\n"
+        "5. Stay strictly relevant to what the user shares (family, relationships, stress, academics, emotions)."
+    )
+    
+    chat_msgs = [{"role": "system", "content": system_prompt}]
+    for m in messages[-6:]:
+        chat_msgs.append({"role": m.get("role", "user"), "content": m.get("content", "")})
+        
+    context_str = f"[User context facts: {', '.join(user_facts)}]" if user_facts else ""
+    chat_msgs.append({"role": "user", "content": f"{context_str} {current_message}".strip()})
+    
+    payload = {
+        "model": "llama-3.3-70b-versatile",
+        "messages": chat_msgs,
+        "temperature": 0.7,
+        "max_tokens": 300
+    }
+    
+    try:
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            url,
+            data=data,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key.strip()}"
+            },
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            res_json = json.loads(resp.read().decode("utf-8"))
+            return res_json["choices"][0]["message"]["content"].strip()
+    except Exception as e:
+        print(f"[ConversationEngine] Groq API call failed: {e}")
+        return None
+
+
 def call_gemini_api(api_key: str, messages: List[Dict[str, str]], current_message: str, user_facts: List[str], lang: str) -> Optional[str]:
-    """Call Google Gemini 2.0 Flash / 1.5 Flash via standard REST API."""
+    """Call Google Gemini API via REST."""
     if not api_key or not api_key.strip():
         return None
         
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key.strip()}"
     
-    # Build conversation contents
     system_instruction = (
         "You are Shield AI, an empathetic mental wellness companion in MindShield AI. "
         "Rules:\n"
@@ -29,13 +82,11 @@ def call_gemini_api(api_key: str, messages: List[Dict[str, str]], current_messag
         "2. Match the user's language (Hindi, Hinglish, English, Gujarati).\n"
         "3. Always end with ONE caring, relevant follow-up question.\n"
         "4. Never give medical diagnosis or generic templated replies.\n"
-        "5. Stay strictly relevant to what the user is discussing."
+        "5. Stay strictly relevant to what the user is discussing (e.g. family, feelings, parents, stress)."
     )
     
     contents = []
-    
-    # Add recent history
-    for msg in messages[-8:]:
+    for msg in messages[-6:]:
         role = "user" if msg.get("role") == "user" else "model"
         contents.append({
             "role": role,
@@ -438,25 +489,30 @@ class ConversationEngine:
         session.user_facts = self._extract_facts(message, session.user_facts)
         stress_score = self._calculate_stress(message, session.stress_trajectory)
 
-        # 1. Check if Gemini API key is configured
-        api_key = os.getenv("GEMINI_API_KEY", "") or os.getenv("AI_API_KEY", "")
+        # 1. Try Groq API first (if GROQ_API_KEY is present)
+        groq_key = os.getenv("GROQ_API_KEY", "")
         ai_response = None
         
-        if api_key and len(api_key.strip()) > 10:
-            history_msgs = [{"role": item["role"], "content": item["content"]} for item in session.history[-6:]]
-            ai_response = call_gemini_api(api_key, history_msgs, message, session.user_facts, lang)
+        history_msgs = [{"role": item["role"], "content": item["content"]} for item in session.history[-6:]]
+        
+        if groq_key and len(groq_key.strip()) > 10:
+            ai_response = call_groq_api(groq_key, history_msgs, message, session.user_facts, lang)
 
-        # 2. Strict Category-Locked Contextual Fallback
+        # 2. Try Gemini API
+        if not ai_response:
+            api_key = os.getenv("GEMINI_API_KEY", "") or os.getenv("AI_API_KEY", "")
+            if api_key and len(api_key.strip()) > 10:
+                ai_response = call_gemini_api(api_key, history_msgs, message, session.user_facts, lang)
+
+        # 3. Strict Category-Locked Contextual Fallback
         if not ai_response:
             intent_pool = RESPONSES_BY_INTENT.get(intent, RESPONSES_BY_INTENT["general"])
             responses = intent_pool.get(lang, intent_pool.get("en", []))
             
-            # Select an unused response from the matching category
             available = [r for r in responses if r not in session.used_responses]
             if available:
                 ai_response = available[0]
             elif responses:
-                # If all category responses used, synthesize dynamic variant
                 ai_response = responses[-1]
             else:
                 ai_response = "I hear what you're saying and I am right here with you. Can you tell me a little more about how this is affecting you today?"
