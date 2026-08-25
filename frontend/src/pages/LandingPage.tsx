@@ -270,25 +270,123 @@ const LandingPage = () => {
 
       {/* Contact Us & Team Section */}
       <section id="contact" className="py-20 px-6 bg-slate-900/60 border-t border-slate-800/60">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-sm font-semibold mb-4">
               <Users className="w-4 h-4" />
-              <span>SIH Hackathon Initiative</span>
+              <span>Smart India Hackathon 2026 Initiative</span>
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold">Contact & Team Details</h2>
-            <p className="text-slate-400 mt-2">Developed with precision for Smart India Hackathon</p>
+            <h2 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+              Contact & Team Details
+            </h2>
+            <p className="text-slate-400 mt-3 text-base md:text-lg">
+              This website was proudly created and engineered by <strong className="text-blue-400">TEAM INSIGHT-X</strong>
+            </p>
           </div>
 
+          {/* Team Members Grid */}
+          <div className="mb-10">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-6 text-center">
+              Core Engineering Team
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Team Leader */}
+              <div className="p-6 rounded-2xl bg-gradient-to-b from-blue-500/15 to-cyan-500/10 border-2 border-blue-500/50 backdrop-blur-xl shadow-lg shadow-blue-500/10 flex flex-col justify-between sm:col-span-2 lg:col-span-1">
+                <div>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500 text-white text-xs font-extrabold uppercase tracking-wider mb-3">
+                    👑 TEAM LEADER
+                  </div>
+                  <h4 className="text-xl font-bold text-white leading-tight">
+                    PATEL MEETKUMAR CHIRAGKUMAR
+                  </h4>
+                  <p className="text-xs text-blue-300 font-medium mt-1">Lead Architect & Full-Stack AI Engineer</p>
+                </div>
+                <div className="mt-4 pt-3 border-t border-blue-500/20 text-xs text-slate-400 flex items-center justify-between">
+                  <span>Team INSIGHT-X</span>
+                  <span className="text-cyan-400 font-semibold">Lead</span>
+                </div>
+              </div>
+
+              {/* Kashvi Pahwa */}
+              <div className="p-6 rounded-2xl bg-slate-900/80 border border-slate-700/60 backdrop-blur-xl hover:border-slate-600 transition-all flex flex-col justify-between">
+                <div>
+                  <div className="w-8 h-8 rounded-xl bg-slate-800 flex items-center justify-center text-slate-300 font-bold text-sm mb-3">
+                    KP
+                  </div>
+                  <h4 className="text-lg font-bold text-white">
+                    KASHVI PAHWA
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-1">Core Developer & Researcher</p>
+                </div>
+                <div className="mt-4 pt-3 border-t border-slate-800 text-xs text-slate-400 flex items-center justify-between">
+                  <span>Team INSIGHT-X</span>
+                  <span className="text-slate-300">Co-Worker</span>
+                </div>
+              </div>
+
+              {/* Harshit Singh */}
+              <div className="p-6 rounded-2xl bg-slate-900/80 border border-slate-700/60 backdrop-blur-xl hover:border-slate-600 transition-all flex flex-col justify-between">
+                <div>
+                  <div className="w-8 h-8 rounded-xl bg-slate-800 flex items-center justify-center text-slate-300 font-bold text-sm mb-3">
+                    HS
+                  </div>
+                  <h4 className="text-lg font-bold text-white">
+                    HARSHIT SINGH
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-1">Core Developer & Engineer</p>
+                </div>
+                <div className="mt-4 pt-3 border-t border-slate-800 text-xs text-slate-400 flex items-center justify-between">
+                  <span>Team INSIGHT-X</span>
+                  <span className="text-slate-300">Co-Worker</span>
+                </div>
+              </div>
+
+              {/* Yogendra Singh */}
+              <div className="p-6 rounded-2xl bg-slate-900/80 border border-slate-700/60 backdrop-blur-xl hover:border-slate-600 transition-all flex flex-col justify-between">
+                <div>
+                  <div className="w-8 h-8 rounded-xl bg-slate-800 flex items-center justify-center text-slate-300 font-bold text-sm mb-3">
+                    YS
+                  </div>
+                  <h4 className="text-lg font-bold text-white">
+                    YOGENDRA SINGH
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-1">Core Developer & Systems</p>
+                </div>
+                <div className="mt-4 pt-3 border-t border-slate-800 text-xs text-slate-400 flex items-center justify-between">
+                  <span>Team INSIGHT-X</span>
+                  <span className="text-slate-300">Co-Worker</span>
+                </div>
+              </div>
+
+              {/* Abhiraj Singh */}
+              <div className="p-6 rounded-2xl bg-slate-900/80 border border-slate-700/60 backdrop-blur-xl hover:border-slate-600 transition-all flex flex-col justify-between sm:col-span-2 lg:col-span-1">
+                <div>
+                  <div className="w-8 h-8 rounded-xl bg-slate-800 flex items-center justify-center text-slate-300 font-bold text-sm mb-3">
+                    AS
+                  </div>
+                  <h4 className="text-lg font-bold text-white">
+                    ABHIRAJ SINGH
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-1">Core Developer & QA</p>
+                </div>
+                <div className="mt-4 pt-3 border-t border-slate-800 text-xs text-slate-400 flex items-center justify-between">
+                  <span>Team INSIGHT-X</span>
+                  <span className="text-slate-300">Co-Worker</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Contact Details Card */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="p-8 rounded-3xl bg-slate-900/80 border border-slate-700/60 backdrop-blur-xl flex flex-col justify-between">
               <div>
                 <div className="w-12 h-12 rounded-2xl bg-blue-500/20 flex items-center justify-center border border-blue-500/30 mb-4 text-blue-400">
                   <Users className="w-6 h-6" />
                 </div>
-                <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-1">Development Team</h3>
-                <p className="text-2xl font-bold text-white">INSIGHT-X</p>
-                <p className="text-slate-400 text-sm mt-2">Full-Stack AI Health-Tech Architecture</p>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Development Organization</h3>
+                <p className="text-2xl font-bold text-white">TEAM INSIGHT-X</p>
+                <p className="text-slate-400 text-sm mt-2">Next-Gen Multimodal AI Mental Health & Stress Analytics System</p>
               </div>
               <div className="mt-6 pt-4 border-t border-slate-800 flex items-center gap-2 text-xs text-blue-400 font-medium">
                 <Sparkles className="w-4 h-4" />
@@ -301,14 +399,14 @@ const LandingPage = () => {
                 <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 flex items-center justify-center border border-cyan-500/30 mb-4 text-cyan-400">
                   <Mail className="w-6 h-6" />
                 </div>
-                <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-1">Contact Email</h3>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Contact & Queries</h3>
                 <a 
                   href="mailto:itsmeetbuddy1@gmail.com" 
                   className="text-xl font-bold text-cyan-400 hover:text-cyan-300 transition-colors break-all"
                 >
                   itsmeetbuddy1@gmail.com
                 </a>
-                <p className="text-slate-400 text-sm mt-2">Reach out for queries, feedback, or collaborations.</p>
+                <p className="text-slate-400 text-sm mt-2">Reach out to Team Leader Patel Meetkumar Chiragkumar for queries or evaluations.</p>
               </div>
               <div className="mt-6 pt-4 border-t border-slate-800 flex items-center gap-2 text-xs text-slate-400">
                 <span>Response window: &lt; 24 hours</span>
@@ -327,9 +425,9 @@ const LandingPage = () => {
               It does not provide medical diagnosis or replace qualified professional care.
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row items-center justify-between text-xs text-slate-600 gap-2 text-center">
-            <p>© 2026 MindShield AI. Built by Team INSIGHT-X.</p>
-            <p>Contact: itsmeetbuddy1@gmail.com</p>
+          <div className="flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2 text-center">
+            <p>© 2026 MindShield AI. Developed by <strong className="text-slate-400">TEAM INSIGHT-X</strong> (Led by Patel Meetkumar Chiragkumar).</p>
+            <p>Contact: <a href="mailto:itsmeetbuddy1@gmail.com" className="text-blue-400 hover:underline">itsmeetbuddy1@gmail.com</a></p>
           </div>
         </div>
       </footer>

@@ -139,6 +139,75 @@ const SIHExplainerPage: React.FC = () => {
           </div>
         </section>
 
+        {/* Section 5: Team INSIGHT-X */}
+        <section className="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
+            <span className="text-3xl">👥</span> 5. Engineering Team — INSIGHT-X
+          </h2>
+          <p className="text-slate-600 dark:text-slate-400 mb-6 leading-relaxed">
+            MindShield AI was conceptualized, engineered, and presented by <strong>TEAM INSIGHT-X</strong> for the Smart India Hackathon.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Team Leader */}
+            <div className="p-5 rounded-2xl bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-500/50 flex flex-col justify-between sm:col-span-2 lg:col-span-1">
+              <div>
+                <span className="inline-block px-2.5 py-0.5 rounded-full bg-blue-600 text-white text-xs font-bold uppercase tracking-wider mb-2">
+                  👑 Team Leader
+                </span>
+                <h4 className="text-lg font-bold text-slate-900 dark:text-white">
+                  PATEL MEETKUMAR CHIRAGKUMAR
+                </h4>
+                <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-1">Lead Architect & Full-Stack AI Engineer</p>
+              </div>
+            </div>
+
+            {/* Kashvi Pahwa */}
+            <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col justify-between">
+              <div>
+                <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Member</span>
+                <h4 className="text-base font-bold text-slate-900 dark:text-white mt-1">
+                  KASHVI PAHWA
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Core Developer & Researcher</p>
+              </div>
+            </div>
+
+            {/* Harshit Singh */}
+            <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col justify-between">
+              <div>
+                <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Member</span>
+                <h4 className="text-base font-bold text-slate-900 dark:text-white mt-1">
+                  HARSHIT SINGH
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Core Developer & Engineer</p>
+              </div>
+            </div>
+
+            {/* Yogendra Singh */}
+            <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col justify-between">
+              <div>
+                <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Member</span>
+                <h4 className="text-base font-bold text-slate-900 dark:text-white mt-1">
+                  YOGENDRA SINGH
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Core Developer & Systems</p>
+              </div>
+            </div>
+
+            {/* Abhiraj Singh */}
+            <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col justify-between sm:col-span-2 lg:col-span-1">
+              <div>
+                <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Member</span>
+                <h4 className="text-base font-bold text-slate-900 dark:text-white mt-1">
+                  ABHIRAJ SINGH
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Core Developer & QA</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
       </div>
     </div>
   );
