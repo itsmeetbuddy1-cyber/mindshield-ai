@@ -82,4 +82,5 @@ const apiService = {
   scoreMultimodal: (data: any) => api.post('/score-multimodal', data),
 }
 
+export { apiService }
 export default apiService

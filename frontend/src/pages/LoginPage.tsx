@@ -116,7 +116,7 @@ export default function LoginPage() {
     try {
       await signup(name.trim(), email.trim(), password);
       toast.success('Account created successfully! Welcome to MindShield AI.');
-      navigate('/dashboard');
+      navigate('/onboarding');
     } catch (err: any) {
       const detail = err?.response?.data?.detail;
       if (err?.response?.status === 400 && detail?.includes('already registered')) {
