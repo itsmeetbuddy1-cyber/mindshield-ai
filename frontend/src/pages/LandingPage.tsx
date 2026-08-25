@@ -359,7 +359,7 @@ const LandingPage = () => {
               </div>
 
               {/* Abhiraj Singh */}
-              <div className="p-6 rounded-2xl bg-slate-900/80 border border-slate-700/60 backdrop-blur-xl hover:border-slate-600 transition-all flex flex-col justify-between sm:col-span-2 lg:col-span-1">
+              <div className="p-6 rounded-2xl bg-slate-900/80 border border-slate-700/60 backdrop-blur-xl hover:border-slate-600 transition-all flex flex-col justify-between">
                 <div>
                   <div className="w-8 h-8 rounded-xl bg-slate-800 flex items-center justify-center text-slate-300 font-bold text-sm mb-3">
                     AS
@@ -368,6 +368,23 @@ const LandingPage = () => {
                     ABHIRAJ SINGH
                   </h4>
                   <p className="text-xs text-slate-400 mt-1">Core Developer & QA</p>
+                </div>
+                <div className="mt-4 pt-3 border-t border-slate-800 text-xs text-slate-400 flex items-center justify-between">
+                  <span>Team INSIGHT-X</span>
+                  <span className="text-slate-300">Co-Worker</span>
+                </div>
+              </div>
+
+              {/* Priyank Taunk */}
+              <div className="p-6 rounded-2xl bg-slate-900/80 border border-slate-700/60 backdrop-blur-xl hover:border-slate-600 transition-all flex flex-col justify-between">
+                <div>
+                  <div className="w-8 h-8 rounded-xl bg-slate-800 flex items-center justify-center text-slate-300 font-bold text-sm mb-3">
+                    PT
+                  </div>
+                  <h4 className="text-lg font-bold text-white">
+                    PRIYANK TAUNK
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-1">Core Developer & Integrations</p>
                 </div>
                 <div className="mt-4 pt-3 border-t border-slate-800 text-xs text-slate-400 flex items-center justify-between">
                   <span>Team INSIGHT-X</span>

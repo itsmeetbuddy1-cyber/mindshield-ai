@@ -196,13 +196,24 @@ const SIHExplainerPage: React.FC = () => {
             </div>
 
             {/* Abhiraj Singh */}
-            <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col justify-between sm:col-span-2 lg:col-span-1">
+            <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col justify-between">
               <div>
                 <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Member</span>
                 <h4 className="text-base font-bold text-slate-900 dark:text-white mt-1">
                   ABHIRAJ SINGH
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Core Developer & QA</p>
+              </div>
+            </div>
+
+            {/* Priyank Taunk */}
+            <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col justify-between">
+              <div>
+                <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Member</span>
+                <h4 className="text-base font-bold text-slate-900 dark:text-white mt-1">
+                  PRIYANK TAUNK
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Core Developer & Integrations</p>
               </div>
             </div>
           </div>
